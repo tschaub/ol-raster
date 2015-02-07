@@ -139,8 +139,8 @@ ol.source.Raster.prototype.getImage =
   var context = this.canvasContext_;
   var canvas = context.canvas;
 
-  var width = pixelRatio * ol.extent.getWidth(extent) / resolution;
-  var height = pixelRatio * ol.extent.getHeight(extent) / resolution;
+  var width = ol.extent.getWidth(extent) / resolution;
+  var height = ol.extent.getHeight(extent) / resolution;
 
   if (width !== canvas.width ||
       height !== canvas.height) {
@@ -151,7 +151,7 @@ ol.source.Raster.prototype.getImage =
   var frameState = this.updateFrameState_(extent, resolution, projection);
   this.composeFrame_(frameState);
 
-  var imageCanvas = new ol.ImageCanvas(extent, resolution, pixelRatio,
+  var imageCanvas = new ol.ImageCanvas(extent, resolution, 1,
       this.getAttributions(), canvas);
 
   return imageCanvas;
