@@ -34,7 +34,25 @@
           <h4 id="title">Raster example</h4>
           <p id="shortdesc">Dynamically generated raster source.</p>
           <div id="docs">
-            <p>See the <a href="raster.js" target="_blank">raster.js source</a> to see how this is done.</p>
+            <p>
+              This example uses a <code>ol.source.Raster</code> to generate data
+              based on another source.  The raster source accepts any number of
+              input sources (tile or image based) and runs a pipeline of
+              operations on the input pixels.  The return from the final
+              operation is used as the data for the output source.
+            </p>
+            <p>
+              In this case, a single tiled source of imagery is used as input.
+              For each pixel, the Triangular Greenness Index
+              (<a href="http://digitalcommons.unl.edu/cgi/viewcontent.cgi?article=2161&context=usdaarsfacpub">TGI</a>)
+              is calculated from the input pixels.  A second operation colors
+              those pixels based on a threshold value (values above the
+              threshold are green and those below are transparent).
+            </p>
+            <p>
+              See the <a href="raster.js" target="_blank">raster.js source</a>
+              for more details.
+            </p>
           </div>
           <div id="tags">raster</div>
         </div>
