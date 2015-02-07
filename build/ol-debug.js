@@ -1,6 +1,6 @@
 // OpenLayers 3. See http://openlayers.org/
 // License: https://raw.githubusercontent.com/openlayers/ol3/master/LICENSE.md
-// Version: v3.1.1-144-g6fffc32
+// Version: v3.1.1-144-gff1bb11
 
 (function (root, factory) {
   if (typeof define === "function" && define.amd) {
@@ -110059,6 +110059,8 @@ ol.source.OSMXML = function(opt_options) {
 goog.inherits(ol.source.OSMXML, ol.source.StaticVector);
 
 goog.provide('ol.source.Raster');
+goog.provide('ol.source.RasterEvent');
+goog.provide('ol.source.RasterEventType');
 
 goog.require('goog.asserts');
 goog.require('goog.functions');
@@ -110242,6 +110244,11 @@ ol.source.Raster.prototype.composeFrame_ = function(frameState) {
   var targetImageData = context.getImageData(0, 0, canvas.width, canvas.height);
   var target = targetImageData.data;
 
+
+  var resolution = frameState.viewState.resolution / frameState.pixelRatio;
+  this.dispatchEvent(new ol.source.RasterEvent(
+      ol.source.RasterEventType.BEFOREOPERATIONS, resolution));
+
   var source, pixel;
   for (var j = 0, jj = target.length; j < jj; j += 4) {
     for (var k = 0; k < len; ++k) {
@@ -110252,13 +110259,17 @@ ol.source.Raster.prototype.composeFrame_ = function(frameState) {
       pixel[2] = source[j + 2];
       pixel[3] = source[j + 3];
     }
-    this.transformPixels_(pixels);
+    this.runOperations_(pixels);
     pixel = pixels[0];
     target[j] = pixel[0];
     target[j + 1] = pixel[1];
     target[j + 2] = pixel[2];
     target[j + 3] = pixel[3];
   }
+
+  this.dispatchEvent(new ol.source.RasterEvent(
+      ol.source.RasterEventType.AFTEROPERATIONS, resolution));
+
   context.putImageData(targetImageData, 0, 0);
 
   frameState.tileQueue.loadMoreTiles(16, 16);
@@ -110271,7 +110282,7 @@ ol.source.Raster.prototype.composeFrame_ = function(frameState) {
  * @return {Array.<ol.raster.Pixel>} The modified pixels.
  * @private
  */
-ol.source.Raster.prototype.transformPixels_ = function(pixels) {
+ol.source.Raster.prototype.runOperations_ = function(pixels) {
   for (var i = 0, ii = this.operations_.length; i < ii; ++i) {
     pixels = this.operations_[i](pixels);
   }
@@ -110373,6 +110384,51 @@ ol.source.Raster.createImageRenderer_ = function(source) {
 ol.source.Raster.createTileRenderer_ = function(source) {
   var layer = new ol.layer.Tile({source: source});
   return new ol.renderer.canvas.TileLayer(null, layer);
+};
+
+
+/**
+ * @classdesc
+ * Events emitted by {@link ol.source.Raster} instances are instances of this
+ * type.
+ *
+ * @constructor
+ * @extends {goog.events.Event}
+ * @implements {oli.source.RasterEvent}
+ * @param {string} type Type.
+ * @param {number} resolution Map units per pixel.
+ */
+ol.source.RasterEvent = function(type, resolution) {
+  goog.base(this, type);
+
+  /**
+   * Map units per pixel.
+   * @type {number}
+   * @api
+   */
+  this.resolution = resolution;
+
+};
+goog.inherits(ol.source.RasterEvent, goog.events.Event);
+
+
+/**
+ * @enum {string}
+ */
+ol.source.RasterEventType = {
+  /**
+   * Triggered before operations are run.
+   * @event ol.source.RasterEvent#beforeoperations
+   * @api
+   */
+  BEFOREOPERATIONS: 'beforeoperations',
+
+  /**
+   * Triggered after operations are run.
+   * @event ol.source.RasterEvent#afteroperations
+   * @api
+   */
+  AFTEROPERATIONS: 'afteroperations'
 };
 
 // FIXME cache expiration
@@ -113909,6 +113965,8 @@ goog.require('ol.source.MapQuest');
 goog.require('ol.source.OSM');
 goog.require('ol.source.OSMXML');
 goog.require('ol.source.Raster');
+goog.require('ol.source.RasterEvent');
+goog.require('ol.source.RasterEventType');
 goog.require('ol.source.ServerVector');
 goog.require('ol.source.Source');
 goog.require('ol.source.Stamen');
@@ -115623,6 +115681,11 @@ goog.exportSymbol(
     'ol.source.Raster',
     ol.source.Raster,
     OPENLAYERS);
+
+goog.exportProperty(
+    ol.source.RasterEvent.prototype,
+    'resolution',
+    ol.source.RasterEvent.prototype.resolution);
 
 goog.exportSymbol(
     'ol.source.ServerVector',

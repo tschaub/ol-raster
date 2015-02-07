@@ -3,8 +3,16 @@ function tgi(pixels) {
   var r = pixel[0] / 255;
   var g = pixel[1] / 255;
   var b = pixel[2] / 255;
-  var index = (120 * (r - b) - (190 * (r - g))) / 2;
-  pixel[0] = index;
+  var value = (120 * (r - b) - (190 * (r - g))) / 2;
+  pixel[0] = value;
+  return pixels;
+}
+
+var counts = new Counts(0, 25);
+
+function summarize(pixels) {
+  var value = pixels[0][0];
+  counts.increment(value);
   return pixels;
 }
 
@@ -12,8 +20,8 @@ var threshold = 10;
 
 function color(pixels) {
   var pixel = pixels[0];
-  var index = pixel[0];
-  if (index > threshold) {
+  var value = pixel[0];
+  if (value > threshold) {
     pixel[0] = 0;
     pixel[1] = 255;
     pixel[2] = 0;
@@ -29,19 +37,28 @@ var bing = new ol.source.BingMaps({
   imagerySet: 'Aerial'
 });
 
-var imagery = new ol.layer.Tile({
-  source: bing
+var raster = new ol.source.Raster({
+  sources: [bing],
+  operations: [tgi, summarize, color]
 });
 
-var greenness = new ol.layer.Image({
-  source: new ol.source.Raster({
-    sources: [bing],
-    operations: [tgi, color]
-  })
+raster.on('beforeoperations', function() {
+  counts.clear();
+});
+
+raster.on('afteroperations', function(event) {
+  schedulePlot(event.resolution);
 });
 
 var map = new ol.Map({
-  layers: [imagery, greenness],
+  layers: [
+    new ol.layer.Tile({
+      source: bing
+    }),
+    new ol.layer.Image({
+      source: raster
+    })
+  ],
   target: 'map',
   view: new ol.View({
     center: [-9651695.964309687, 4937351.719788862],
@@ -49,3 +66,102 @@ var map = new ol.Map({
     minZoom: 12
   })
 });
+
+
+function Counts(min, max) {
+  this.min = min;
+  this.max = max;
+  this.values = new Array(max - min);
+}
+
+Counts.prototype.clear = function() {
+  for (var i = 0, ii = this.values.length; i < ii; ++i) {
+    this.values[i] = 0;
+  }
+};
+
+Counts.prototype.increment = function(value) {
+  value = Math.floor(value);
+  if (value >= this.min && value < this.max) {
+    this.values[value - this.min] += 1;
+  }
+};
+
+var timer = null;
+function schedulePlot(resolution) {
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+  timer = setTimeout(plot.bind(null, resolution), 1000 / 60);
+}
+
+var barWidth = 15;
+var plotHeight = 150;
+var chart = d3.select('#plot').append('svg')
+    .attr('width', barWidth * counts.values.length)
+    .attr('height', plotHeight);
+
+var chartRect = chart[0][0].getBoundingClientRect();
+
+var tip = d3.select(document.body).append('div')
+    .attr('class', 'tip');
+
+function plot(resolution) {
+  var yScale = d3.scale.linear()
+      .domain([0, d3.max(counts.values)])
+      .range([0, plotHeight]);
+
+  var bar = chart.selectAll('rect').data(counts.values);
+
+  bar.enter().append('rect');
+
+  bar.attr('class', function(value, index) {
+        var value = index - counts.min;
+        return 'bar' + (value >= threshold ? ' selected' : '');
+      })
+      .attr('width', barWidth - 2);
+
+  bar.transition()
+      .attr('transform', function(value, index) {
+        return 'translate(' + (index * barWidth) + ', ' +
+            (plotHeight - yScale(value)) + ')';
+      })
+      .attr('height', yScale);
+
+  bar.on('mousemove', function() {
+    var old = threshold;
+    threshold = counts.min +
+        Math.floor((d3.event.pageX - chartRect.left) / barWidth);
+    if (old !== threshold) {
+      map.render();
+    }
+  });
+
+  bar.on('mouseover', function() {
+    var index = Math.floor((d3.event.pageX - chartRect.left) / barWidth);
+    var area = 0;
+    for (var i = counts.values.length - 1; i >= index; --i) {
+      area += resolution * resolution * counts.values[i];
+    }
+    tip.html(message(index + counts.min, area));
+    tip.style('display', 'block');
+    tip.transition().style({
+      left: (chartRect.left + (index * barWidth) + (barWidth / 2)) + 'px',
+      top: (d3.event.y - 60) + 'px',
+      opacity: 1
+    });
+  });
+
+  bar.on('mouseout', function() {
+    tip.transition().style('opacity', 0).each('end', function() {
+      tip.style('display', 'none');
+    });
+  });
+
+}
+
+function message(value, area) {
+  var acres = (area / 4046.86).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return acres + ' acres at<br>' + value + ' TGI or above';
+}
