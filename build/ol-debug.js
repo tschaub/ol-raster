@@ -1,6 +1,6 @@
 // OpenLayers 3. See http://openlayers.org/
 // License: https://raw.githubusercontent.com/openlayers/ol3/master/LICENSE.md
-// Version: v3.1.1-144-gff1bb11
+// Version: v3.1.1-146-g29e607b
 
 (function (root, factory) {
   if (typeof define === "function" && define.amd) {
@@ -110063,6 +110063,7 @@ goog.provide('ol.source.RasterEvent');
 goog.provide('ol.source.RasterEventType');
 
 goog.require('goog.asserts');
+goog.require('goog.events.Event');
 goog.require('goog.functions');
 goog.require('goog.vec.Mat4');
 goog.require('ol.ImageCanvas');
@@ -110385,6 +110386,7 @@ ol.source.Raster.createTileRenderer_ = function(source) {
   var layer = new ol.layer.Tile({source: source});
   return new ol.renderer.canvas.TileLayer(null, layer);
 };
+
 
 
 /**

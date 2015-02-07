@@ -68,18 +68,34 @@ var map = new ol.Map({
 });
 
 
+
+/**
+ * Maintain counts of values between a min and max.
+ * @param {number} min The minimum value (inclusive).
+ * @param {[type]} max The maximum value (exclusive).
+ * @constructor
+ */
 function Counts(min, max) {
   this.min = min;
   this.max = max;
   this.values = new Array(max - min);
 }
 
+
+/**
+ * Clear all counts.
+ */
 Counts.prototype.clear = function() {
   for (var i = 0, ii = this.values.length; i < ii; ++i) {
     this.values[i] = 0;
   }
 };
 
+
+/**
+ * Increment the count for a value.
+ * @param {number} value The value.
+ */
 Counts.prototype.increment = function(value) {
   value = Math.floor(value);
   if (value >= this.min && value < this.max) {
@@ -117,10 +133,9 @@ function plot(resolution) {
   bar.enter().append('rect');
 
   bar.attr('class', function(value, index) {
-        var value = index - counts.min;
-        return 'bar' + (value >= threshold ? ' selected' : '');
-      })
-      .attr('width', barWidth - 2);
+    return 'bar' + (index - counts.min >= threshold ? ' selected' : '');
+  })
+  .attr('width', barWidth - 2);
 
   bar.transition()
       .attr('transform', function(value, index) {

@@ -3,6 +3,7 @@ goog.provide('ol.source.RasterEvent');
 goog.provide('ol.source.RasterEventType');
 
 goog.require('goog.asserts');
+goog.require('goog.events.Event');
 goog.require('goog.functions');
 goog.require('goog.vec.Mat4');
 goog.require('ol.ImageCanvas');
@@ -325,6 +326,7 @@ ol.source.Raster.createTileRenderer_ = function(source) {
   var layer = new ol.layer.Tile({source: source});
   return new ol.renderer.canvas.TileLayer(null, layer);
 };
+
 
 
 /**
