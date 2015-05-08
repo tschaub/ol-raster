@@ -1,6 +1,5 @@
 goog.provide('ol.control.Rotate');
 
-goog.require('goog.asserts');
 goog.require('goog.dom');
 goog.require('goog.dom.TagName');
 goog.require('goog.dom.classlist');
@@ -149,6 +148,7 @@ ol.control.Rotate.prototype.resetNorth_ = function() {
 
 
 /**
+ * Update the rotate control element.
  * @param {ol.MapEvent} mapEvent Map event.
  * @this {ol.control.Rotate}
  * @api

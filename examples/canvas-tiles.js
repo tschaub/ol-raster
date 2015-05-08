@@ -6,13 +6,11 @@ var map = new ol.Map({
     new ol.layer.Tile({
       source: new ol.source.TileDebug({
         projection: 'EPSG:3857',
-        tileGrid: new ol.tilegrid.XYZ({
-          maxZoom: 22
-        })
+        tileGrid: ol.tilegrid.createXYZ({maxZoom: 22})
       })
     })
   ],
-  renderer: exampleNS.getRendererFromQueryString(),
+  renderer: common.getRendererFromQueryString(),
   target: 'map',
   controls: ol.control.defaults({
     attributionOptions: /** @type {olx.control.AttributionOptions} */ ({

@@ -1,10 +1,15 @@
+var blur = document.getElementById('blur');
+var radius = document.getElementById('radius');
+
 var vector = new ol.layer.Heatmap({
-  source: new ol.source.KML({
-    extractStyles: false,
-    projection: 'EPSG:3857',
-    url: 'data/kml/2012_Earthquakes_Mag5.kml'
+  source: new ol.source.Vector({
+    url: 'data/kml/2012_Earthquakes_Mag5.kml',
+    format: new ol.format.KML({
+      extractStyles: false
+    })
   }),
-  radius: 5
+  blur: parseInt(blur.value, 10),
+  radius: parseInt(radius.value, 10)
 });
 
 vector.getSource().on('addfeature', function(event) {
@@ -29,4 +34,13 @@ var map = new ol.Map({
     center: [0, 0],
     zoom: 2
   })
+});
+
+
+blur.addEventListener('input', function() {
+  vector.setBlur(parseInt(blur.value, 10));
+});
+
+radius.addEventListener('input', function() {
+  vector.setRadius(parseInt(radius.value, 10));
 });

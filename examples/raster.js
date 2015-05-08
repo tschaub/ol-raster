@@ -25,7 +25,7 @@ function color(pixels) {
     pixel[0] = 0;
     pixel[1] = 255;
     pixel[2] = 0;
-    pixel[3] = 255;
+    pixel[3] = 128;
   } else {
     pixel[3] = 0;
   }
@@ -61,9 +61,10 @@ var map = new ol.Map({
   ],
   target: 'map',
   view: new ol.View({
-    center: [-9651695.964309687, 4937351.719788862],
+    center: [-9651695, 4937351],
     zoom: 13,
-    minZoom: 12
+    minZoom: 12,
+    maxZoom: 19
   })
 });
 

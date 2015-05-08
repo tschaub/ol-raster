@@ -4,6 +4,7 @@ goog.provide('ol.style.AtlasManager');
 goog.require('goog.asserts');
 goog.require('goog.dom');
 goog.require('goog.dom.TagName');
+goog.require('goog.functions');
 goog.require('goog.object');
 goog.require('ol');
 
@@ -101,7 +102,8 @@ ol.style.AtlasManager.prototype.getInfo = function(id) {
   }
   /** @type {?ol.style.AtlasInfo} */
   var hitInfo = this.getInfo_(this.hitAtlases_, id);
-  goog.asserts.assert(!goog.isNull(hitInfo));
+  goog.asserts.assert(!goog.isNull(hitInfo),
+      'hitInfo must not be null');
 
   return this.mergeInfos_(info, hitInfo);
 };
@@ -136,8 +138,10 @@ ol.style.AtlasManager.prototype.getInfo_ = function(atlases, id) {
  *    entry, or `null` if the entry is not part of the atlases.
  */
 ol.style.AtlasManager.prototype.mergeInfos_ = function(info, hitInfo) {
-  goog.asserts.assert(info.offsetX === hitInfo.offsetX);
-  goog.asserts.assert(info.offsetY === hitInfo.offsetY);
+  goog.asserts.assert(info.offsetX === hitInfo.offsetX,
+      'in order to merge, offsetX of info and hitInfo must be equal');
+  goog.asserts.assert(info.offsetY === hitInfo.offsetY,
+      'in order to merge, offsetY of info and hitInfo must be equal');
   return /** @type {ol.style.AtlasManagerInfo} */ ({
     offsetX: info.offsetX,
     offsetY: info.offsetY,
@@ -193,7 +197,8 @@ ol.style.AtlasManager.prototype.add =
   /** @type {?ol.style.AtlasInfo} */
   var hitInfo = this.add_(true,
       id, width, height, renderHitCallback, opt_this);
-  goog.asserts.assert(!goog.isNull(hitInfo));
+  goog.asserts.assert(!goog.isNull(hitInfo),
+      'hitInfo must not be null');
 
   return this.mergeInfos_(info, hitInfo);
 };
@@ -239,7 +244,7 @@ ol.style.AtlasManager.prototype.add_ =
       ++ii;
     }
   }
-  goog.asserts.fail();
+  goog.asserts.fail('Failed to add to atlasmanager');
 };
 
 

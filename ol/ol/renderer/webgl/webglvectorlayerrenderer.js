@@ -9,13 +9,14 @@ goog.require('ol.layer.Vector');
 goog.require('ol.render.webgl.ReplayGroup');
 goog.require('ol.renderer.vector');
 goog.require('ol.renderer.webgl.Layer');
+goog.require('ol.vec.Mat4');
 
 
 
 /**
  * @constructor
  * @extends {ol.renderer.webgl.Layer}
- * @param {ol.renderer.Map} mapRenderer Map renderer.
+ * @param {ol.renderer.webgl.Map} mapRenderer Map renderer.
  * @param {ol.layer.Vector} vectorLayer Vector layer.
  */
 ol.renderer.webgl.VectorLayer = function(mapRenderer, vectorLayer) {
@@ -94,8 +95,7 @@ ol.renderer.webgl.VectorLayer.prototype.composeFrame =
 ol.renderer.webgl.VectorLayer.prototype.disposeInternal = function() {
   var replayGroup = this.replayGroup_;
   if (!goog.isNull(replayGroup)) {
-    var mapRenderer = this.getWebGLMapRenderer();
-    var context = mapRenderer.getContext();
+    var context = this.mapRenderer.getContext();
     replayGroup.getDeleteResourcesFunction(context)();
     this.replayGroup_ = null;
   }
@@ -106,30 +106,28 @@ ol.renderer.webgl.VectorLayer.prototype.disposeInternal = function() {
 /**
  * @inheritDoc
  */
-ol.renderer.webgl.VectorLayer.prototype.forEachFeatureAtPixel =
+ol.renderer.webgl.VectorLayer.prototype.forEachFeatureAtCoordinate =
     function(coordinate, frameState, callback, thisArg) {
   if (goog.isNull(this.replayGroup_) || goog.isNull(this.layerState_)) {
     return undefined;
   } else {
-    var mapRenderer = this.getWebGLMapRenderer();
-    var context = mapRenderer.getContext();
+    var context = this.mapRenderer.getContext();
     var viewState = frameState.viewState;
     var layer = this.getLayer();
     var layerState = this.layerState_;
     /** @type {Object.<string, boolean>} */
     var features = {};
-    return this.replayGroup_.forEachFeatureAtPixel(context,
-        viewState.center, viewState.resolution, viewState.rotation,
+    return this.replayGroup_.forEachFeatureAtCoordinate(coordinate,
+        context, viewState.center, viewState.resolution, viewState.rotation,
         frameState.size, frameState.pixelRatio,
         layerState.opacity, layerState.brightness, layerState.contrast,
         layerState.hue, layerState.saturation, frameState.skippedFeatureUids,
-        coordinate,
         /**
          * @param {ol.Feature} feature Feature.
          * @return {?} Callback result.
          */
         function(feature) {
-          goog.asserts.assert(goog.isDef(feature));
+          goog.asserts.assert(goog.isDef(feature), 'received a feature');
           var key = goog.getUid(feature).toString();
           if (!(key in features)) {
             features[key] = true;
@@ -143,21 +141,37 @@ ol.renderer.webgl.VectorLayer.prototype.forEachFeatureAtPixel =
 /**
  * @inheritDoc
  */
-ol.renderer.webgl.VectorLayer.prototype.hasFeatureAtPixel =
+ol.renderer.webgl.VectorLayer.prototype.hasFeatureAtCoordinate =
     function(coordinate, frameState) {
   if (goog.isNull(this.replayGroup_) || goog.isNull(this.layerState_)) {
     return false;
   } else {
-    var mapRenderer = this.getWebGLMapRenderer();
-    var context = mapRenderer.getContext();
+    var context = this.mapRenderer.getContext();
     var viewState = frameState.viewState;
     var layerState = this.layerState_;
-    return this.replayGroup_.hasFeatureAtPixel(context,
-        viewState.center, viewState.resolution, viewState.rotation,
+    return this.replayGroup_.hasFeatureAtCoordinate(coordinate,
+        context, viewState.center, viewState.resolution, viewState.rotation,
         frameState.size, frameState.pixelRatio,
         layerState.opacity, layerState.brightness, layerState.contrast,
-        layerState.hue, layerState.saturation, frameState.skippedFeatureUids,
-        coordinate);
+        layerState.hue, layerState.saturation, frameState.skippedFeatureUids);
+  }
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.renderer.webgl.VectorLayer.prototype.forEachLayerAtPixel =
+    function(pixel, frameState, callback, thisArg) {
+  var coordinate = pixel.slice();
+  ol.vec.Mat4.multVec2(
+      frameState.pixelToCoordinateMatrix, coordinate, coordinate);
+  var hasFeature = this.hasFeatureAtCoordinate(coordinate, frameState);
+
+  if (hasFeature) {
+    return callback.call(thisArg, this.getLayer());
+  } else {
+    return undefined;
   }
 };
 
@@ -180,16 +194,21 @@ ol.renderer.webgl.VectorLayer.prototype.prepareFrame =
     function(frameState, layerState, context) {
 
   var vectorLayer = /** @type {ol.layer.Vector} */ (this.getLayer());
-  goog.asserts.assertInstanceof(vectorLayer, ol.layer.Vector);
+  goog.asserts.assertInstanceof(vectorLayer, ol.layer.Vector,
+      'layer is an instance of ol.layer.Vector');
   var vectorSource = vectorLayer.getSource();
 
   this.updateAttributions(
       frameState.attributions, vectorSource.getAttributions());
   this.updateLogos(frameState, vectorSource);
 
-  if (!this.dirty_ && (!vectorLayer.getUpdateWhileAnimating() &&
-      frameState.viewHints[ol.ViewHint.ANIMATING] ||
-      frameState.viewHints[ol.ViewHint.INTERACTING])) {
+  var animating = frameState.viewHints[ol.ViewHint.ANIMATING];
+  var interacting = frameState.viewHints[ol.ViewHint.INTERACTING];
+  var updateWhileAnimating = vectorLayer.getUpdateWhileAnimating();
+  var updateWhileInteracting = vectorLayer.getUpdateWhileInteracting();
+
+  if (!this.dirty_ && (!updateWhileAnimating && animating) ||
+      (!updateWhileInteracting && interacting)) {
     return true;
   }
 

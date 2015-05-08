@@ -22,16 +22,33 @@ var styleFunction = function(feature, resolution) {
   return styleArray;
 };
 
-var vectorSource = new ol.source.IGC({
-  projection: 'EPSG:3857',
-  urls: [
-    'data/igc/Clement-Latour.igc',
-    'data/igc/Damien-de-Baenst.igc',
-    'data/igc/Sylvain-Dhonneur.igc',
-    'data/igc/Tom-Payne.igc',
-    'data/igc/Ulrich-Prinz.igc'
-  ]
-});
+var vectorSource = new ol.source.Vector();
+
+var igcUrls = [
+  'data/igc/Clement-Latour.igc',
+  'data/igc/Damien-de-Baenst.igc',
+  'data/igc/Sylvain-Dhonneur.igc',
+  'data/igc/Tom-Payne.igc',
+  'data/igc/Ulrich-Prinz.igc'
+];
+
+function get(url, callback) {
+  var client = new XMLHttpRequest();
+  client.open('GET', url);
+  client.onload = function() {
+    callback(client.responseText);
+  };
+  client.send();
+}
+
+var igcFormat = new ol.format.IGC();
+for (var i = 0; i < igcUrls.length; ++i) {
+  get(igcUrls[i], function(data) {
+    var features = igcFormat.readFeatures(data,
+        {featureProjection: 'EPSG:3857'});
+    vectorSource.addFeatures(features);
+  });
+}
 
 var time = {
   start: Infinity,
@@ -157,8 +174,8 @@ var featureOverlay = new ol.FeatureOverlay({
   })
 });
 
-$('#time').on('input', function(event) {
-  var value = parseInt($(this).val(), 10) / 100;
+document.getElementById('time').addEventListener('input', function() {
+  var value = parseInt(this.value, 10) / 100;
   var m = time.start + (time.duration * value);
   vectorSource.forEachFeature(function(feature) {
     var geometry = /** @type {ol.geom.LineString} */ (feature.getGeometry());

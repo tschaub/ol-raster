@@ -105,6 +105,17 @@ goog.inherits(ol.source.Raster, ol.source.Image);
 
 
 /**
+ * Reset the operations.
+ * @param {Array.<ol.raster.Operation>} operations New operations.
+ * @api
+ */
+ol.source.Raster.prototype.setOperations = function(operations) {
+  this.operations_ = operations;
+  this.changed();
+};
+
+
+/**
  * Update the stored frame state.
  * @param {ol.Extent} extent The view extent (in map units).
  * @param {number} resolution The view resolution.
@@ -117,8 +128,8 @@ ol.source.Raster.prototype.updateFrameState_ =
   var frameState = this.frameState_;
 
   var center = ol.extent.getCenter(extent);
-  var width = ol.extent.getWidth(extent) / resolution;
-  var height = ol.extent.getHeight(extent) / resolution;
+  var width = Math.round(ol.extent.getWidth(extent) / resolution);
+  var height = Math.round(ol.extent.getHeight(extent) / resolution);
 
   frameState.extent = extent;
   frameState.focus = ol.extent.getCenter(extent);
@@ -142,8 +153,8 @@ ol.source.Raster.prototype.getImage =
   var context = this.canvasContext_;
   var canvas = context.canvas;
 
-  var width = ol.extent.getWidth(extent) / resolution;
-  var height = ol.extent.getHeight(extent) / resolution;
+  var width = Math.round(ol.extent.getWidth(extent) / resolution);
+  var height = Math.round(ol.extent.getHeight(extent) / resolution);
 
   if (width !== canvas.width ||
       height !== canvas.height) {
@@ -162,12 +173,34 @@ ol.source.Raster.prototype.getImage =
 
 
 /**
+ * Determine if all sources are ready.
+ * @return {boolean} All sources are ready.
+ * @private
+ */
+ol.source.Raster.prototype.allSourcesReady_ = function() {
+  var ready = true;
+  var source;
+  for (var i = 0, ii = this.renderers_.length; i < ii; ++i) {
+    source = this.renderers_[i].getLayer().getSource();
+    if (source.getState() !== ol.source.State.READY) {
+      ready = false;
+      break;
+    }
+  }
+  return ready;
+};
+
+
+/**
  * Compose the frame.  This renders data from all sources, runs pixel-wise
  * operations, and renders the result to the stored canvas context.
  * @param {olx.FrameState} frameState The frame state.
  * @private
  */
 ol.source.Raster.prototype.composeFrame_ = function(frameState) {
+  if (!this.allSourcesReady_()) {
+    return;
+  }
   var len = this.renderers_.length;
   var imageDatas = new Array(len);
   var pixels = new Array(len);
@@ -178,8 +211,7 @@ ol.source.Raster.prototype.composeFrame_ = function(frameState) {
   for (var i = 0; i < len; ++i) {
     pixels[i] = [0, 0, 0, 0];
     imageDatas[i] = ol.source.Raster.getImageData_(
-        this.renderers_[i], canvas.width, canvas.height,
-        frameState, frameState.layerStatesArray[i]);
+        this.renderers_[i], frameState, frameState.layerStatesArray[i]);
   }
 
   var targetImageData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -200,8 +232,7 @@ ol.source.Raster.prototype.composeFrame_ = function(frameState) {
       pixel[2] = source[j + 2];
       pixel[3] = source[j + 3];
     }
-    this.runOperations_(pixels);
-    pixel = pixels[0];
+    pixel = this.runOperations_(pixels)[0];
     target[j] = pixel[0];
     target[j + 1] = pixel[1];
     target[j + 2] = pixel[2];
@@ -234,15 +265,12 @@ ol.source.Raster.prototype.runOperations_ = function(pixels) {
 /**
  * Get image data from a renderer.
  * @param {ol.renderer.canvas.Layer} renderer Layer renderer.
- * @param {number} width Data width.
- * @param {number} height Data height.
  * @param {olx.FrameState} frameState The frame state.
  * @param {ol.layer.LayerState} layerState The layer state.
  * @return {ImageData} The image data.
  * @private
  */
-ol.source.Raster.getImageData_ =
-    function(renderer, width, height, frameState, layerState) {
+ol.source.Raster.getImageData_ = function(renderer, frameState, layerState) {
   renderer.prepareFrame(frameState, layerState);
   var canvas = renderer.getImage();
   var imageTransform = renderer.getImageTransform();
@@ -250,7 +278,7 @@ ol.source.Raster.getImageData_ =
   var dy = goog.vec.Mat4.getElement(imageTransform, 1, 3);
   return canvas.getContext('2d').getImageData(
       Math.round(-dx), Math.round(-dy),
-      width, height);
+      frameState.size[0], frameState.size[1]);
 };
 
 
@@ -312,7 +340,7 @@ ol.source.Raster.createRenderer_ = function(source) {
  */
 ol.source.Raster.createImageRenderer_ = function(source) {
   var layer = new ol.layer.Image({source: source});
-  return new ol.renderer.canvas.ImageLayer(null, layer);
+  return new ol.renderer.canvas.ImageLayer(layer);
 };
 
 
@@ -324,7 +352,7 @@ ol.source.Raster.createImageRenderer_ = function(source) {
  */
 ol.source.Raster.createTileRenderer_ = function(source) {
   var layer = new ol.layer.Tile({source: source});
-  return new ol.renderer.canvas.TileLayer(null, layer);
+  return new ol.renderer.canvas.TileLayer(layer);
 };
 
 
