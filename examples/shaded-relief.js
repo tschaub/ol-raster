@@ -2,7 +2,7 @@
  * Generates a shaded relief image given elevation data.  Uses a 3x3
  * neighborhood for determining slope and aspect.
  * @param {Array.<ImageData>} inputs Array of input images.
- * @param {Object} data Data with resolution property.
+ * @param {Object} data Data added in the "beforeoperations" event.
  * @return {Array.<ImageData>} Output images (only the first is rendered).
  */
 function shade(inputs, data) {

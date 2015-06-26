@@ -84,7 +84,7 @@
  * Generates a shaded relief image given elevation data.  Uses a 3x3
  * neighborhood for determining slope and aspect.
  * @param {Array.&lt;ImageData&gt;} inputs Array of input images.
- * @param {Object} data Data with resolution property.
+ * @param {Object} data Data added in the &quot;beforeoperations&quot; event.
  * @return {Array.&lt;ImageData&gt;} Output images (only the first is rendered).
  */
 function shade(inputs, data) {
@@ -303,7 +303,7 @@ table.controls td {
  * Generates a shaded relief image given elevation data.  Uses a 3x3
  * neighborhood for determining slope and aspect.
  * @param {Array.&lt;ImageData&gt;} inputs Array of input images.
- * @param {Object} data Data with resolution property.
+ * @param {Object} data Data added in the &quot;beforeoperations&quot; event.
  * @return {Array.&lt;ImageData&gt;} Output images (only the first is rendered).
  */
 function shade(inputs, data) {
