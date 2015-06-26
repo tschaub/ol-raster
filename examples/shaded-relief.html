@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="../css/ol.css" type="text/css">
     <link rel="stylesheet" href="./resources/layout.css" type="text/css">
     
-    
+    <link rel="stylesheet" href="shaded-relief.css">
     <link rel="stylesheet" href="./resources/prism/prism.css" type="text/css">
     <script src="./resources/zeroclipboard/ZeroClipboard.min.js"></script>
     <title>Shaded Relief</title>
@@ -28,12 +28,20 @@
       <div class="row-fluid">
   <div class="span12">
     <div id="map" class="map"></div>
-    <div id="controls">
-      <label for="sun-el">sun elevation</label>
-      <input id="sun-el" type="range" min="0" max="90" value="45"/>
-      <label for="sun-az">sun azimuth</label>
-      <input id="sun-az" type="range" min="0" max="360" value="45"/>
-    </div>
+    <table class="controls">
+      <tr>
+        <td>vertical exaggeration: <span id="vertOut"></span>x</td>
+        <td><input id="vert" type="range" min="1" max="5" value="1"/></td>
+      </tr>
+      <tr>
+        <td>sun elevation: <span id="sunElOut"></span>°</td>
+        <td><input id="sunEl" type="range" min="0" max="90" value="45"/></td>
+      </tr>
+      <tr>
+        <td>sun azimuth: <span id="sunAzOut"></span>°</td>
+        <td><input id="sunAz" type="range" min="0" max="360" value="45"/></td>
+      </tr>
+    </table>
   </div>
 </div>
 
@@ -91,8 +99,10 @@ function shade(inputs, data) {
   var pixel = [0, 0, 0, 0];
   var twoPi = 2 * Math.PI;
   var halfPi = Math.PI / 2;
-  var cosSunEl = Math.cos(data.sunEl);
-  var sinSunEl = Math.sin(data.sunEl);
+  var sunEl = Math.PI * data.sunEl / 180;
+  var sunAz = Math.PI * data.sunAz / 180;
+  var cosSunEl = Math.cos(sunEl);
+  var sinSunEl = Math.sin(sunEl);
   var pixelX, pixelY, x0, x1, y0, y1, offset,
       z0, z1, dzdx, dzdy, slope, aspect, cosIncidence, scaled;
   for (pixelY = 0; pixelY &lt;= maxY; ++pixelY) {
@@ -108,7 +118,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z0 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z0 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       // determine elevation for (x1, pixelY)
       offset = (pixelY * width + x1) * 4;
@@ -116,7 +126,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z1 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       dzdx = (z1 - z0) / dx;
 
@@ -126,7 +136,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z0 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z0 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       // determine elevation for (pixelX, y1)
       offset = (y1 * width + pixelX) * 4;
@@ -134,7 +144,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z1 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       dzdy = (z1 - z0) / dy;
 
@@ -150,7 +160,7 @@ function shade(inputs, data) {
       }
 
       cosIncidence = sinSunEl * Math.cos(slope) +
-          cosSunEl * Math.sin(slope) * Math.cos(data.sunAz - aspect);
+          cosSunEl * Math.sin(slope) * Math.cos(sunAz - aspect);
 
       offset = (pixelY * width + pixelX) * 4;
       scaled = 255 * cosIncidence;
@@ -190,41 +200,57 @@ var map = new ol.Map({
   ],
   view: new ol.View({
     extent: [-13675026, 4439648, -13580856, 4580292],
-    center: [-13606539, 4492849],
+    center: [-13615645, 4497969],
     minZoom: 10,
     maxZoom: 16,
-    zoom: 12
+    zoom: 13
   })
 });
 
-var sunElevationInput = document.getElementById(&#x27;sun-el&#x27;);
-var sunAzimuthInput = document.getElementById(&#x27;sun-az&#x27;);
-
-sunElevationInput.addEventListener(&#x27;input&#x27;, function() {
-  raster.changed();
-});
-
-sunAzimuthInput.addEventListener(&#x27;input&#x27;, function() {
-  raster.changed();
-});
+var controlIds = [&#x27;vert&#x27;, &#x27;sunEl&#x27;, &#x27;sunAz&#x27;];
+var controls = {};
+controlIds.forEach(function(id) {
+  var control = document.getElementById(id);
+  var output = document.getElementById(id + &#x27;Out&#x27;);
+  control.addEventListener(&#x27;input&#x27;, function() {
+    output.innerText = control.value;
+    raster.changed();
+  });
+  output.innerText = control.value;
+  controls[id] = control;
+})
 
 raster.on(&#x27;beforeoperations&#x27;, function(event) {
   // the event.data object will be passed to operations
-  event.data.resolution = event.resolution;
-  event.data.sunEl = Math.PI * sunElevationInput.value / 180;
-  event.data.sunAz = Math.PI * sunAzimuthInput.value / 180;
+  var data = event.data;
+  data.resolution = event.resolution;
+  for (var id in controls) {
+    data[id] = Number(controls[id].value);
+  }
 });
 </textarea>
-          <textarea class="hidden" name="css"></textarea>
+          <textarea class="hidden" name="css">table.controls td {
+  text-align: center;
+  padding: 2px 5px;
+}
+</textarea>
           <textarea class="hidden" name="html">&lt;div class=&quot;row-fluid&quot;&gt;
   &lt;div class=&quot;span12&quot;&gt;
     &lt;div id=&quot;map&quot; class=&quot;map&quot;&gt;&lt;/div&gt;
-    &lt;div id=&quot;controls&quot;&gt;
-      &lt;label for=&quot;sun-el&quot;&gt;sun elevation&lt;/label&gt;
-      &lt;input id=&quot;sun-el&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;90&quot; value=&quot;45&quot;/&gt;
-      &lt;label for=&quot;sun-az&quot;&gt;sun azimuth&lt;/label&gt;
-      &lt;input id=&quot;sun-az&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;360&quot; value=&quot;45&quot;/&gt;
-    &lt;/div&gt;
+    &lt;table class=&quot;controls&quot;&gt;
+      &lt;tr&gt;
+        &lt;td&gt;vertical exaggeration: &lt;span id=&quot;vertOut&quot;&gt;&lt;/span&gt;x&lt;/td&gt;
+        &lt;td&gt;&lt;input id=&quot;vert&quot; type=&quot;range&quot; min=&quot;1&quot; max=&quot;5&quot; value=&quot;1&quot;/&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td&gt;sun elevation: &lt;span id=&quot;sunElOut&quot;&gt;&lt;/span&gt;°&lt;/td&gt;
+        &lt;td&gt;&lt;input id=&quot;sunEl&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;90&quot; value=&quot;45&quot;/&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td&gt;sun azimuth: &lt;span id=&quot;sunAzOut&quot;&gt;&lt;/span&gt;°&lt;/td&gt;
+        &lt;td&gt;&lt;input id=&quot;sunAz&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;360&quot; value=&quot;45&quot;/&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+    &lt;/table&gt;
   &lt;/div&gt;
 &lt;/div&gt;
 </textarea>
@@ -240,6 +266,13 @@ raster.on(&#x27;beforeoperations&#x27;, function(event) {
 &lt;link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.css" type="text/css"&gt;
 &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.js"&gt;&lt;/script&gt;
 
+&lt;style&gt;
+table.controls td {
+  text-align: center;
+  padding: 2px 5px;
+}
+
+&lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
 &lt;div class="container-fluid"&gt;
@@ -247,12 +280,20 @@ raster.on(&#x27;beforeoperations&#x27;, function(event) {
 &lt;div class=&quot;row-fluid&quot;&gt;
   &lt;div class=&quot;span12&quot;&gt;
     &lt;div id=&quot;map&quot; class=&quot;map&quot;&gt;&lt;/div&gt;
-    &lt;div id=&quot;controls&quot;&gt;
-      &lt;label for=&quot;sun-el&quot;&gt;sun elevation&lt;/label&gt;
-      &lt;input id=&quot;sun-el&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;90&quot; value=&quot;45&quot;/&gt;
-      &lt;label for=&quot;sun-az&quot;&gt;sun azimuth&lt;/label&gt;
-      &lt;input id=&quot;sun-az&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;360&quot; value=&quot;45&quot;/&gt;
-    &lt;/div&gt;
+    &lt;table class=&quot;controls&quot;&gt;
+      &lt;tr&gt;
+        &lt;td&gt;vertical exaggeration: &lt;span id=&quot;vertOut&quot;&gt;&lt;/span&gt;x&lt;/td&gt;
+        &lt;td&gt;&lt;input id=&quot;vert&quot; type=&quot;range&quot; min=&quot;1&quot; max=&quot;5&quot; value=&quot;1&quot;/&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td&gt;sun elevation: &lt;span id=&quot;sunElOut&quot;&gt;&lt;/span&gt;°&lt;/td&gt;
+        &lt;td&gt;&lt;input id=&quot;sunEl&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;90&quot; value=&quot;45&quot;/&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td&gt;sun azimuth: &lt;span id=&quot;sunAzOut&quot;&gt;&lt;/span&gt;°&lt;/td&gt;
+        &lt;td&gt;&lt;input id=&quot;sunAz&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;360&quot; value=&quot;45&quot;/&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+    &lt;/table&gt;
   &lt;/div&gt;
 &lt;/div&gt;
 
@@ -277,8 +318,10 @@ function shade(inputs, data) {
   var pixel = [0, 0, 0, 0];
   var twoPi = 2 * Math.PI;
   var halfPi = Math.PI / 2;
-  var cosSunEl = Math.cos(data.sunEl);
-  var sinSunEl = Math.sin(data.sunEl);
+  var sunEl = Math.PI * data.sunEl / 180;
+  var sunAz = Math.PI * data.sunAz / 180;
+  var cosSunEl = Math.cos(sunEl);
+  var sinSunEl = Math.sin(sunEl);
   var pixelX, pixelY, x0, x1, y0, y1, offset,
       z0, z1, dzdx, dzdy, slope, aspect, cosIncidence, scaled;
   for (pixelY = 0; pixelY &lt;= maxY; ++pixelY) {
@@ -294,7 +337,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z0 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z0 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       // determine elevation for (x1, pixelY)
       offset = (pixelY * width + x1) * 4;
@@ -302,7 +345,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z1 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       dzdx = (z1 - z0) / dx;
 
@@ -312,7 +355,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z0 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z0 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       // determine elevation for (pixelX, y1)
       offset = (y1 * width + pixelX) * 4;
@@ -320,7 +363,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z1 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       dzdy = (z1 - z0) / dy;
 
@@ -336,7 +379,7 @@ function shade(inputs, data) {
       }
 
       cosIncidence = sinSunEl * Math.cos(slope) +
-          cosSunEl * Math.sin(slope) * Math.cos(data.sunAz - aspect);
+          cosSunEl * Math.sin(slope) * Math.cos(sunAz - aspect);
 
       offset = (pixelY * width + pixelX) * 4;
       scaled = 255 * cosIncidence;
@@ -376,29 +419,33 @@ var map = new ol.Map({
   ],
   view: new ol.View({
     extent: [-13675026, 4439648, -13580856, 4580292],
-    center: [-13606539, 4492849],
+    center: [-13615645, 4497969],
     minZoom: 10,
     maxZoom: 16,
-    zoom: 12
+    zoom: 13
   })
 });
 
-var sunElevationInput = document.getElementById(&#x27;sun-el&#x27;);
-var sunAzimuthInput = document.getElementById(&#x27;sun-az&#x27;);
-
-sunElevationInput.addEventListener(&#x27;input&#x27;, function() {
-  raster.changed();
-});
-
-sunAzimuthInput.addEventListener(&#x27;input&#x27;, function() {
-  raster.changed();
-});
+var controlIds = [&#x27;vert&#x27;, &#x27;sunEl&#x27;, &#x27;sunAz&#x27;];
+var controls = {};
+controlIds.forEach(function(id) {
+  var control = document.getElementById(id);
+  var output = document.getElementById(id + &#x27;Out&#x27;);
+  control.addEventListener(&#x27;input&#x27;, function() {
+    output.innerText = control.value;
+    raster.changed();
+  });
+  output.innerText = control.value;
+  controls[id] = control;
+})
 
 raster.on(&#x27;beforeoperations&#x27;, function(event) {
   // the event.data object will be passed to operations
-  event.data.resolution = event.resolution;
-  event.data.sunEl = Math.PI * sunElevationInput.value / 180;
-  event.data.sunAz = Math.PI * sunAzimuthInput.value / 180;
+  var data = event.data;
+  data.resolution = event.resolution;
+  for (var id in controls) {
+    data[id] = Number(controls[id].value);
+  }
 });
 
 &lt;/script&gt;

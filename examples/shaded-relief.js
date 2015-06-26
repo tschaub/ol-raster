@@ -17,8 +17,10 @@ function shade(inputs, data) {
   var pixel = [0, 0, 0, 0];
   var twoPi = 2 * Math.PI;
   var halfPi = Math.PI / 2;
-  var cosSunEl = Math.cos(data.sunEl);
-  var sinSunEl = Math.sin(data.sunEl);
+  var sunEl = Math.PI * data.sunEl / 180;
+  var sunAz = Math.PI * data.sunAz / 180;
+  var cosSunEl = Math.cos(sunEl);
+  var sinSunEl = Math.sin(sunEl);
   var pixelX, pixelY, x0, x1, y0, y1, offset,
       z0, z1, dzdx, dzdy, slope, aspect, cosIncidence, scaled;
   for (pixelY = 0; pixelY <= maxY; ++pixelY) {
@@ -34,7 +36,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z0 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z0 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       // determine elevation for (x1, pixelY)
       offset = (pixelY * width + x1) * 4;
@@ -42,7 +44,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z1 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       dzdx = (z1 - z0) / dx;
 
@@ -52,7 +54,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z0 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z0 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       // determine elevation for (pixelX, y1)
       offset = (y1 * width + pixelX) * 4;
@@ -60,7 +62,7 @@ function shade(inputs, data) {
       pixel[1] = elevationData[offset + 1];
       pixel[2] = elevationData[offset + 2];
       pixel[3] = elevationData[offset + 3];
-      z1 = pixel[0] + pixel[1] * 2 + pixel[2] * 3;
+      z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
       dzdy = (z1 - z0) / dy;
 
@@ -76,7 +78,7 @@ function shade(inputs, data) {
       }
 
       cosIncidence = sinSunEl * Math.cos(slope) +
-          cosSunEl * Math.sin(slope) * Math.cos(data.sunAz - aspect);
+          cosSunEl * Math.sin(slope) * Math.cos(sunAz - aspect);
 
       offset = (pixelY * width + pixelX) * 4;
       scaled = 255 * cosIncidence;
@@ -116,27 +118,31 @@ var map = new ol.Map({
   ],
   view: new ol.View({
     extent: [-13675026, 4439648, -13580856, 4580292],
-    center: [-13606539, 4492849],
+    center: [-13615645, 4497969],
     minZoom: 10,
     maxZoom: 16,
-    zoom: 12
+    zoom: 13
   })
 });
 
-var sunElevationInput = document.getElementById('sun-el');
-var sunAzimuthInput = document.getElementById('sun-az');
-
-sunElevationInput.addEventListener('input', function() {
-  raster.changed();
-});
-
-sunAzimuthInput.addEventListener('input', function() {
-  raster.changed();
-});
+var controlIds = ['vert', 'sunEl', 'sunAz'];
+var controls = {};
+controlIds.forEach(function(id) {
+  var control = document.getElementById(id);
+  var output = document.getElementById(id + 'Out');
+  control.addEventListener('input', function() {
+    output.innerText = control.value;
+    raster.changed();
+  });
+  output.innerText = control.value;
+  controls[id] = control;
+})
 
 raster.on('beforeoperations', function(event) {
   // the event.data object will be passed to operations
-  event.data.resolution = event.resolution;
-  event.data.sunEl = Math.PI * sunElevationInput.value / 180;
-  event.data.sunAz = Math.PI * sunAzimuthInput.value / 180;
+  var data = event.data;
+  data.resolution = event.resolution;
+  for (var id in controls) {
+    data[id] = Number(controls[id].value);
+  }
 });
