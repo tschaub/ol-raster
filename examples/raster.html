@@ -65,7 +65,7 @@
           <input type="submit" class="btn btn-primary" id="jsfiddle-button" value="Create JSFiddle">
           <textarea class="hidden" name="js">// NOCOMPILE
 // this example uses d3 for which we don&#x27;t have an externs file.
-function tgi(pixels) {
+function tgi(pixels, data) {
   var pixel = pixels[0];
   var r = pixel[0] / 255;
   var g = pixel[1] / 255;
@@ -75,20 +75,17 @@ function tgi(pixels) {
   return pixels;
 }
 
-var counts = new Counts(0, 25);
 
-function summarize(pixels) {
+function summarize(pixels, data) {
   var value = pixels[0][0];
-  counts.increment(value);
+  data.counts.increment(value);
   return pixels;
 }
 
-var threshold = 10;
-
-function color(pixels) {
+function color(pixels, data) {
   var pixel = pixels[0];
   var value = pixel[0];
-  if (value &gt; threshold) {
+  if (value &gt; data.threshold) {
     pixel[0] = 0;
     pixel[1] = 255;
     pixel[2] = 0;
@@ -109,12 +106,17 @@ var raster = new ol.source.Raster({
   operations: [tgi, summarize, color]
 });
 
-raster.on(&#x27;beforeoperations&#x27;, function() {
+var counts = new Counts(0, 25);
+var threshold = 10;
+
+raster.on(&#x27;beforeoperations&#x27;, function(event) {
   counts.clear();
+  event.data.counts = counts;
+  event.data.threshold = threshold;
 });
 
 raster.on(&#x27;afteroperations&#x27;, function(event) {
-  schedulePlot(event.resolution);
+  schedulePlot(event.resolution, event.data.counts);
 });
 
 var map = new ol.Map({
@@ -172,12 +174,12 @@ Counts.prototype.increment = function(value) {
 };
 
 var timer = null;
-function schedulePlot(resolution) {
+function schedulePlot(resolution, counts) {
   if (timer) {
     clearTimeout(timer);
     timer = null;
   }
-  timer = setTimeout(plot.bind(null, resolution), 1000 / 60);
+  timer = setTimeout(plot.bind(null, resolution, counts), 1000 / 60);
 }
 
 var barWidth = 15;
@@ -191,7 +193,7 @@ var chartRect = chart[0][0].getBoundingClientRect();
 var tip = d3.select(document.body).append(&#x27;div&#x27;)
     .attr(&#x27;class&#x27;, &#x27;tip&#x27;);
 
-function plot(resolution) {
+function plot(resolution, counts) {
   var yScale = d3.scale.linear()
       .domain([0, d3.max(counts.values)])
       .range([0, plotHeight]);
@@ -289,7 +291,7 @@ function message(value, area) {
 &lt;/div&gt;
 </textarea>
           <input type="hidden" name="wrap" value="l">
-          <input type="hidden" name="resources" value="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css,https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js,https://cdnjs.cloudflare.com/ajax/libs/ol3/3.5.0/ol.css,https://cdnjs.cloudflare.com/ajax/libs/ol3/3.5.0/ol.js">
+          <input type="hidden" name="resources" value="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css,https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js,https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.css,https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.js">
           <pre><code id="example-source" class="language-markup">&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;
@@ -297,8 +299,8 @@ function message(value, area) {
 &lt;script src="https://code.jquery.com/jquery-1.11.2.min.js"&gt;&lt;/script&gt;
 &lt;link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css"&gt;
 &lt;script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"&gt;&lt;/script&gt;
-&lt;link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.5.0/ol.css" type="text/css"&gt;
-&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.5.0/ol.js"&gt;&lt;/script&gt;
+&lt;link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.css" type="text/css"&gt;
+&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.js"&gt;&lt;/script&gt;
 &lt;script src=&quot;http://d3js.org/d3.v3.min.js&quot;&gt;&lt;/script&gt;
 &lt;link rel=&quot;stylesheet&quot; href=&quot;raster.css&quot;&gt;
 &lt;style&gt;
@@ -350,7 +352,7 @@ function message(value, area) {
 &lt;script&gt;
 // NOCOMPILE
 // this example uses d3 for which we don&#x27;t have an externs file.
-function tgi(pixels) {
+function tgi(pixels, data) {
   var pixel = pixels[0];
   var r = pixel[0] / 255;
   var g = pixel[1] / 255;
@@ -360,20 +362,17 @@ function tgi(pixels) {
   return pixels;
 }
 
-var counts = new Counts(0, 25);
 
-function summarize(pixels) {
+function summarize(pixels, data) {
   var value = pixels[0][0];
-  counts.increment(value);
+  data.counts.increment(value);
   return pixels;
 }
 
-var threshold = 10;
-
-function color(pixels) {
+function color(pixels, data) {
   var pixel = pixels[0];
   var value = pixel[0];
-  if (value &gt; threshold) {
+  if (value &gt; data.threshold) {
     pixel[0] = 0;
     pixel[1] = 255;
     pixel[2] = 0;
@@ -394,12 +393,17 @@ var raster = new ol.source.Raster({
   operations: [tgi, summarize, color]
 });
 
-raster.on(&#x27;beforeoperations&#x27;, function() {
+var counts = new Counts(0, 25);
+var threshold = 10;
+
+raster.on(&#x27;beforeoperations&#x27;, function(event) {
   counts.clear();
+  event.data.counts = counts;
+  event.data.threshold = threshold;
 });
 
 raster.on(&#x27;afteroperations&#x27;, function(event) {
-  schedulePlot(event.resolution);
+  schedulePlot(event.resolution, event.data.counts);
 });
 
 var map = new ol.Map({
@@ -457,12 +461,12 @@ Counts.prototype.increment = function(value) {
 };
 
 var timer = null;
-function schedulePlot(resolution) {
+function schedulePlot(resolution, counts) {
   if (timer) {
     clearTimeout(timer);
     timer = null;
   }
-  timer = setTimeout(plot.bind(null, resolution), 1000 / 60);
+  timer = setTimeout(plot.bind(null, resolution, counts), 1000 / 60);
 }
 
 var barWidth = 15;
@@ -476,7 +480,7 @@ var chartRect = chart[0][0].getBoundingClientRect();
 var tip = d3.select(document.body).append(&#x27;div&#x27;)
     .attr(&#x27;class&#x27;, &#x27;tip&#x27;);
 
-function plot(resolution) {
+function plot(resolution, counts) {
   var yScale = d3.scale.linear()
       .domain([0, d3.max(counts.values)])
       .range([0, plotHeight]);
@@ -537,7 +541,7 @@ function message(value, area) {
 &lt;/script&gt;
 &lt;/body&gt;
 &lt;/html&gt;</code></pre>
-        </div>
+        </form>
       </div>
     </div>
 
