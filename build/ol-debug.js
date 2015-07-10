@@ -1,6 +1,6 @@
 // OpenLayers 3. See http://openlayers.org/
 // License: https://raw.githubusercontent.com/openlayers/ol3/master/LICENSE.md
-// Version: v3.6.0-97-ga162eea
+// Version: v3.7.0-32-g55f7c44
 
 (function (root, factory) {
   if (typeof exports === "object") {
@@ -17799,6 +17799,339 @@ ol.extent.transform2D = function(extent, transform, opt_extent) {
   return dest;
 };
 
+// Copyright 2008 The Closure Library Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Utilities for creating functions. Loosely inspired by the
+ * java classes: http://goo.gl/GM0Hmu and http://goo.gl/6k7nI8.
+ *
+ * @author nicksantos@google.com (Nick Santos)
+ */
+
+
+goog.provide('goog.functions');
+
+
+/**
+ * Creates a function that always returns the same value.
+ * @param {T} retValue The value to return.
+ * @return {function():T} The new function.
+ * @template T
+ */
+goog.functions.constant = function(retValue) {
+  return function() {
+    return retValue;
+  };
+};
+
+
+/**
+ * Always returns false.
+ * @type {function(...): boolean}
+ */
+goog.functions.FALSE = goog.functions.constant(false);
+
+
+/**
+ * Always returns true.
+ * @type {function(...): boolean}
+ */
+goog.functions.TRUE = goog.functions.constant(true);
+
+
+/**
+ * Always returns NULL.
+ * @type {function(...): null}
+ */
+goog.functions.NULL = goog.functions.constant(null);
+
+
+/**
+ * A simple function that returns the first argument of whatever is passed
+ * into it.
+ * @param {T=} opt_returnValue The single value that will be returned.
+ * @param {...*} var_args Optional trailing arguments. These are ignored.
+ * @return {T} The first argument passed in, or undefined if nothing was passed.
+ * @template T
+ */
+goog.functions.identity = function(opt_returnValue, var_args) {
+  return opt_returnValue;
+};
+
+
+/**
+ * Creates a function that always throws an error with the given message.
+ * @param {string} message The error message.
+ * @return {!Function} The error-throwing function.
+ */
+goog.functions.error = function(message) {
+  return function() {
+    throw Error(message);
+  };
+};
+
+
+/**
+ * Creates a function that throws the given object.
+ * @param {*} err An object to be thrown.
+ * @return {!Function} The error-throwing function.
+ */
+goog.functions.fail = function(err) {
+  return function() {
+    throw err;
+  }
+};
+
+
+/**
+ * Given a function, create a function that keeps opt_numArgs arguments and
+ * silently discards all additional arguments.
+ * @param {Function} f The original function.
+ * @param {number=} opt_numArgs The number of arguments to keep. Defaults to 0.
+ * @return {!Function} A version of f that only keeps the first opt_numArgs
+ *     arguments.
+ */
+goog.functions.lock = function(f, opt_numArgs) {
+  opt_numArgs = opt_numArgs || 0;
+  return function() {
+    return f.apply(this, Array.prototype.slice.call(arguments, 0, opt_numArgs));
+  };
+};
+
+
+/**
+ * Creates a function that returns its nth argument.
+ * @param {number} n The position of the return argument.
+ * @return {!Function} A new function.
+ */
+goog.functions.nth = function(n) {
+  return function() {
+    return arguments[n];
+  };
+};
+
+
+/**
+ * Given a function, create a new function that swallows its return value
+ * and replaces it with a new one.
+ * @param {Function} f A function.
+ * @param {T} retValue A new return value.
+ * @return {function(...?):T} A new function.
+ * @template T
+ */
+goog.functions.withReturnValue = function(f, retValue) {
+  return goog.functions.sequence(f, goog.functions.constant(retValue));
+};
+
+
+/**
+ * Creates a function that returns whether its arguement equals the given value.
+ *
+ * Example:
+ * var key = goog.object.findKey(obj, goog.functions.equalTo('needle'));
+ *
+ * @param {*} value The value to compare to.
+ * @param {boolean=} opt_useLooseComparison Whether to use a loose (==)
+ *     comparison rather than a strict (===) one. Defaults to false.
+ * @return {function(*):boolean} The new function.
+ */
+goog.functions.equalTo = function(value, opt_useLooseComparison) {
+  return function(other) {
+    return opt_useLooseComparison ? (value == other) : (value === other);
+  };
+};
+
+
+/**
+ * Creates the composition of the functions passed in.
+ * For example, (goog.functions.compose(f, g))(a) is equivalent to f(g(a)).
+ * @param {function(...?):T} fn The final function.
+ * @param {...Function} var_args A list of functions.
+ * @return {function(...?):T} The composition of all inputs.
+ * @template T
+ */
+goog.functions.compose = function(fn, var_args) {
+  var functions = arguments;
+  var length = functions.length;
+  return function() {
+    var result;
+    if (length) {
+      result = functions[length - 1].apply(this, arguments);
+    }
+
+    for (var i = length - 2; i >= 0; i--) {
+      result = functions[i].call(this, result);
+    }
+    return result;
+  };
+};
+
+
+/**
+ * Creates a function that calls the functions passed in in sequence, and
+ * returns the value of the last function. For example,
+ * (goog.functions.sequence(f, g))(x) is equivalent to f(x),g(x).
+ * @param {...Function} var_args A list of functions.
+ * @return {!Function} A function that calls all inputs in sequence.
+ */
+goog.functions.sequence = function(var_args) {
+  var functions = arguments;
+  var length = functions.length;
+  return function() {
+    var result;
+    for (var i = 0; i < length; i++) {
+      result = functions[i].apply(this, arguments);
+    }
+    return result;
+  };
+};
+
+
+/**
+ * Creates a function that returns true if each of its components evaluates
+ * to true. The components are evaluated in order, and the evaluation will be
+ * short-circuited as soon as a function returns false.
+ * For example, (goog.functions.and(f, g))(x) is equivalent to f(x) && g(x).
+ * @param {...Function} var_args A list of functions.
+ * @return {function(...?):boolean} A function that ANDs its component
+ *      functions.
+ */
+goog.functions.and = function(var_args) {
+  var functions = arguments;
+  var length = functions.length;
+  return function() {
+    for (var i = 0; i < length; i++) {
+      if (!functions[i].apply(this, arguments)) {
+        return false;
+      }
+    }
+    return true;
+  };
+};
+
+
+/**
+ * Creates a function that returns true if any of its components evaluates
+ * to true. The components are evaluated in order, and the evaluation will be
+ * short-circuited as soon as a function returns true.
+ * For example, (goog.functions.or(f, g))(x) is equivalent to f(x) || g(x).
+ * @param {...Function} var_args A list of functions.
+ * @return {function(...?):boolean} A function that ORs its component
+ *    functions.
+ */
+goog.functions.or = function(var_args) {
+  var functions = arguments;
+  var length = functions.length;
+  return function() {
+    for (var i = 0; i < length; i++) {
+      if (functions[i].apply(this, arguments)) {
+        return true;
+      }
+    }
+    return false;
+  };
+};
+
+
+/**
+ * Creates a function that returns the Boolean opposite of a provided function.
+ * For example, (goog.functions.not(f))(x) is equivalent to !f(x).
+ * @param {!Function} f The original function.
+ * @return {function(...?):boolean} A function that delegates to f and returns
+ * opposite.
+ */
+goog.functions.not = function(f) {
+  return function() {
+    return !f.apply(this, arguments);
+  };
+};
+
+
+/**
+ * Generic factory function to construct an object given the constructor
+ * and the arguments. Intended to be bound to create object factories.
+ *
+ * Example:
+ *
+ * var factory = goog.partial(goog.functions.create, Class);
+ *
+ * @param {function(new:T, ...)} constructor The constructor for the Object.
+ * @param {...*} var_args The arguments to be passed to the constructor.
+ * @return {T} A new instance of the class given in {@code constructor}.
+ * @template T
+ */
+goog.functions.create = function(constructor, var_args) {
+  /**
+   * @constructor
+   * @final
+   */
+  var temp = function() {};
+  temp.prototype = constructor.prototype;
+
+  // obj will have constructor's prototype in its chain and
+  // 'obj instanceof constructor' will be true.
+  var obj = new temp();
+
+  // obj is initialized by constructor.
+  // arguments is only array-like so lacks shift(), but can be used with
+  // the Array prototype function.
+  constructor.apply(obj, Array.prototype.slice.call(arguments, 1));
+  return obj;
+};
+
+
+/**
+ * @define {boolean} Whether the return value cache should be used.
+ *    This should only be used to disable caches when testing.
+ */
+goog.define('goog.functions.CACHE_RETURN_VALUE', true);
+
+
+/**
+ * Gives a wrapper function that caches the return value of a parameterless
+ * function when first called.
+ *
+ * When called for the first time, the given function is called and its
+ * return value is cached (thus this is only appropriate for idempotent
+ * functions).  Subsequent calls will return the cached return value. This
+ * allows the evaluation of expensive functions to be delayed until first used.
+ *
+ * To cache the return values of functions with parameters, see goog.memoize.
+ *
+ * @param {!function():T} fn A function to lazily evaluate.
+ * @return {!function():T} A wrapped version the function.
+ * @template T
+ */
+goog.functions.cacheReturnValue = function(fn) {
+  var called = false;
+  var value;
+
+  return function() {
+    if (!goog.functions.CACHE_RETURN_VALUE) {
+      return fn();
+    }
+
+    if (!called) {
+      value = fn();
+      called = true;
+    }
+
+    return value;
+  }
+};
+
 /**
  * @license
  * Latitude/longitude spherical geodesy formulae taken from
@@ -18902,6 +19235,2954 @@ ol.proj.transformWithProjections =
   return transformFn(point);
 };
 
+goog.provide('ol.geom.Geometry');
+goog.provide('ol.geom.GeometryLayout');
+goog.provide('ol.geom.GeometryType');
+
+goog.require('goog.functions');
+goog.require('ol.Object');
+goog.require('ol.extent');
+goog.require('ol.proj');
+
+
+/**
+ * The geometry type. One of `'Point'`, `'LineString'`, `'LinearRing'`,
+ * `'Polygon'`, `'MultiPoint'`, `'MultiLineString'`, `'MultiPolygon'`,
+ * `'GeometryCollection'`, `'Circle'`.
+ * @enum {string}
+ * @api stable
+ */
+ol.geom.GeometryType = {
+  POINT: 'Point',
+  LINE_STRING: 'LineString',
+  LINEAR_RING: 'LinearRing',
+  POLYGON: 'Polygon',
+  MULTI_POINT: 'MultiPoint',
+  MULTI_LINE_STRING: 'MultiLineString',
+  MULTI_POLYGON: 'MultiPolygon',
+  GEOMETRY_COLLECTION: 'GeometryCollection',
+  CIRCLE: 'Circle'
+};
+
+
+/**
+ * The coordinate layout for geometries, indicating whether a 3rd or 4th z ('Z')
+ * or measure ('M') coordinate is available. Supported values are `'XY'`,
+ * `'XYZ'`, `'XYM'`, `'XYZM'`.
+ * @enum {string}
+ * @api stable
+ */
+ol.geom.GeometryLayout = {
+  XY: 'XY',
+  XYZ: 'XYZ',
+  XYM: 'XYM',
+  XYZM: 'XYZM'
+};
+
+
+
+/**
+ * @classdesc
+ * Abstract base class; normally only used for creating subclasses and not
+ * instantiated in apps.
+ * Base class for vector geometries.
+ *
+ * @constructor
+ * @extends {ol.Object}
+ * @fires change Triggered when the geometry changes.
+ * @api stable
+ */
+ol.geom.Geometry = function() {
+
+  goog.base(this);
+
+  /**
+   * @private
+   * @type {ol.Extent}
+   */
+  this.extent_ = ol.extent.createEmpty();
+
+  /**
+   * @private
+   * @type {number}
+   */
+  this.extentRevision_ = -1;
+
+  /**
+   * @protected
+   * @type {Object.<string, ol.geom.Geometry>}
+   */
+  this.simplifiedGeometryCache = {};
+
+  /**
+   * @protected
+   * @type {number}
+   */
+  this.simplifiedGeometryMaxMinSquaredTolerance = 0;
+
+  /**
+   * @protected
+   * @type {number}
+   */
+  this.simplifiedGeometryRevision = 0;
+
+};
+goog.inherits(ol.geom.Geometry, ol.Object);
+
+
+/**
+ * Make a complete copy of the geometry.
+ * @function
+ * @return {!ol.geom.Geometry} Clone.
+ */
+ol.geom.Geometry.prototype.clone = goog.abstractMethod;
+
+
+/**
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @param {ol.Coordinate} closestPoint Closest point.
+ * @param {number} minSquaredDistance Minimum squared distance.
+ * @return {number} Minimum squared distance.
+ */
+ol.geom.Geometry.prototype.closestPointXY = goog.abstractMethod;
+
+
+/**
+ * Return the closest point of the geometry to the passed point as
+ * {@link ol.Coordinate coordinate}.
+ * @param {ol.Coordinate} point Point.
+ * @param {ol.Coordinate=} opt_closestPoint Closest point.
+ * @return {ol.Coordinate} Closest point.
+ * @api stable
+ */
+ol.geom.Geometry.prototype.getClosestPoint = function(point, opt_closestPoint) {
+  var closestPoint = goog.isDef(opt_closestPoint) ?
+      opt_closestPoint : [NaN, NaN];
+  this.closestPointXY(point[0], point[1], closestPoint, Infinity);
+  return closestPoint;
+};
+
+
+/**
+ * @param {ol.Coordinate} coordinate Coordinate.
+ * @return {boolean} Contains coordinate.
+ */
+ol.geom.Geometry.prototype.containsCoordinate = function(coordinate) {
+  return this.containsXY(coordinate[0], coordinate[1]);
+};
+
+
+/**
+ * @param {ol.Extent} extent Extent.
+ * @protected
+ * @return {ol.Extent} extent Extent.
+ */
+ol.geom.Geometry.prototype.computeExtent = goog.abstractMethod;
+
+
+/**
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @return {boolean} Contains (x, y).
+ */
+ol.geom.Geometry.prototype.containsXY = goog.functions.FALSE;
+
+
+/**
+ * Get the extent of the geometry.
+ * @param {ol.Extent=} opt_extent Extent.
+ * @return {ol.Extent} extent Extent.
+ * @api stable
+ */
+ol.geom.Geometry.prototype.getExtent = function(opt_extent) {
+  if (this.extentRevision_ != this.getRevision()) {
+    this.extent_ = this.computeExtent(this.extent_);
+    this.extentRevision_ = this.getRevision();
+  }
+  return ol.extent.returnOrUpdate(this.extent_, opt_extent);
+};
+
+
+/**
+ * Create a simplified version of this geometry using the Douglas Peucker
+ * algorithm.
+ * @see http://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm
+ * @function
+ * @param {number} squaredTolerance Squared tolerance.
+ * @return {ol.geom.Geometry} Simplified geometry.
+ */
+ol.geom.Geometry.prototype.getSimplifiedGeometry = goog.abstractMethod;
+
+
+/**
+ * Get the type of this geometry.
+ * @function
+ * @return {ol.geom.GeometryType} Geometry type.
+ */
+ol.geom.Geometry.prototype.getType = goog.abstractMethod;
+
+
+/**
+ * Apply a transform function to each coordinate of the geometry.
+ * The geometry is modified in place.
+ * If you do not want the geometry modified in place, first clone() it and
+ * then use this function on the clone.
+ * @function
+ * @param {ol.TransformFunction} transformFn Transform.
+ */
+ol.geom.Geometry.prototype.applyTransform = goog.abstractMethod;
+
+
+/**
+ * Test if the geometry and the passed extent intersect.
+ * @param {ol.Extent} extent Extent.
+ * @return {boolean} `true` if the geometry and the extent intersect.
+ * @function
+ */
+ol.geom.Geometry.prototype.intersectsExtent = goog.abstractMethod;
+
+
+/**
+ * Translate the geometry.  This modifies the geometry coordinates in place.  If
+ * instead you want a new geometry, first `clone()` this geometry.
+ * @param {number} deltaX Delta X.
+ * @param {number} deltaY Delta Y.
+ * @function
+ */
+ol.geom.Geometry.prototype.translate = goog.abstractMethod;
+
+
+/**
+ * Transform each coordinate of the geometry from one coordinate reference
+ * system to another. The geometry is modified in place.
+ * For example, a line will be transformed to a line and a circle to a circle.
+ * If you do not want the geometry modified in place, first clone() it and
+ * then use this function on the clone.
+ *
+ * @param {ol.proj.ProjectionLike} source The current projection.  Can be a
+ *     string identifier or a {@link ol.proj.Projection} object.
+ * @param {ol.proj.ProjectionLike} destination The desired projection.  Can be a
+ *     string identifier or a {@link ol.proj.Projection} object.
+ * @return {ol.geom.Geometry} This geometry.  Note that original geometry is
+ *     modified in place.
+ * @api stable
+ */
+ol.geom.Geometry.prototype.transform = function(source, destination) {
+  this.applyTransform(ol.proj.getTransform(source, destination));
+  return this;
+};
+
+goog.provide('ol.geom.flat.transform');
+
+goog.require('goog.vec.Mat4');
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {goog.vec.Mat4.Number} transform Transform.
+ * @param {Array.<number>=} opt_dest Destination.
+ * @return {Array.<number>} Transformed coordinates.
+ */
+ol.geom.flat.transform.transform2D =
+    function(flatCoordinates, offset, end, stride, transform, opt_dest) {
+  var m00 = goog.vec.Mat4.getElement(transform, 0, 0);
+  var m10 = goog.vec.Mat4.getElement(transform, 1, 0);
+  var m01 = goog.vec.Mat4.getElement(transform, 0, 1);
+  var m11 = goog.vec.Mat4.getElement(transform, 1, 1);
+  var m03 = goog.vec.Mat4.getElement(transform, 0, 3);
+  var m13 = goog.vec.Mat4.getElement(transform, 1, 3);
+  var dest = goog.isDef(opt_dest) ? opt_dest : [];
+  var i = 0;
+  var j;
+  for (j = offset; j < end; j += stride) {
+    var x = flatCoordinates[j];
+    var y = flatCoordinates[j + 1];
+    dest[i++] = m00 * x + m01 * y + m03;
+    dest[i++] = m10 * x + m11 * y + m13;
+  }
+  if (goog.isDef(opt_dest) && dest.length != i) {
+    dest.length = i;
+  }
+  return dest;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {number} deltaX Delta X.
+ * @param {number} deltaY Delta Y.
+ * @param {Array.<number>=} opt_dest Destination.
+ * @return {Array.<number>} Transformed coordinates.
+ */
+ol.geom.flat.transform.translate =
+    function(flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
+  var dest = goog.isDef(opt_dest) ? opt_dest : [];
+  var i = 0;
+  var j, k;
+  for (j = offset; j < end; j += stride) {
+    dest[i++] = flatCoordinates[j] + deltaX;
+    dest[i++] = flatCoordinates[j + 1] + deltaY;
+    for (k = j + 2; k < j + stride; ++k) {
+      dest[i++] = flatCoordinates[k];
+    }
+  }
+  if (goog.isDef(opt_dest) && dest.length != i) {
+    dest.length = i;
+  }
+  return dest;
+};
+
+goog.provide('ol.geom.SimpleGeometry');
+
+goog.require('goog.asserts');
+goog.require('goog.functions');
+goog.require('goog.object');
+goog.require('ol.extent');
+goog.require('ol.geom.Geometry');
+goog.require('ol.geom.GeometryLayout');
+goog.require('ol.geom.flat.transform');
+
+
+
+/**
+ * @classdesc
+ * Abstract base class; only used for creating subclasses; do not instantiate
+ * in apps, as cannot be rendered.
+ *
+ * @constructor
+ * @extends {ol.geom.Geometry}
+ * @api stable
+ */
+ol.geom.SimpleGeometry = function() {
+
+  goog.base(this);
+
+  /**
+   * @protected
+   * @type {ol.geom.GeometryLayout}
+   */
+  this.layout = ol.geom.GeometryLayout.XY;
+
+  /**
+   * @protected
+   * @type {number}
+   */
+  this.stride = 2;
+
+  /**
+   * @protected
+   * @type {Array.<number>}
+   */
+  this.flatCoordinates = null;
+
+};
+goog.inherits(ol.geom.SimpleGeometry, ol.geom.Geometry);
+
+
+/**
+ * @param {number} stride Stride.
+ * @private
+ * @return {ol.geom.GeometryLayout} layout Layout.
+ */
+ol.geom.SimpleGeometry.getLayoutForStride_ = function(stride) {
+  if (stride == 2) {
+    return ol.geom.GeometryLayout.XY;
+  } else if (stride == 3) {
+    return ol.geom.GeometryLayout.XYZ;
+  } else if (stride == 4) {
+    return ol.geom.GeometryLayout.XYZM;
+  } else {
+    goog.asserts.fail('unsupported stride: ' + stride);
+  }
+};
+
+
+/**
+ * @param {ol.geom.GeometryLayout} layout Layout.
+ * @return {number} Stride.
+ */
+ol.geom.SimpleGeometry.getStrideForLayout = function(layout) {
+  if (layout == ol.geom.GeometryLayout.XY) {
+    return 2;
+  } else if (layout == ol.geom.GeometryLayout.XYZ) {
+    return 3;
+  } else if (layout == ol.geom.GeometryLayout.XYM) {
+    return 3;
+  } else if (layout == ol.geom.GeometryLayout.XYZM) {
+    return 4;
+  } else {
+    goog.asserts.fail('unsupported layout: ' + layout);
+  }
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.SimpleGeometry.prototype.containsXY = goog.functions.FALSE;
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.SimpleGeometry.prototype.computeExtent = function(extent) {
+  return ol.extent.createOrUpdateFromFlatCoordinates(
+      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride,
+      extent);
+};
+
+
+/**
+ * @return {Array} Coordinates.
+ */
+ol.geom.SimpleGeometry.prototype.getCoordinates = goog.abstractMethod;
+
+
+/**
+ * Return the first coordinate of the geometry.
+ * @return {ol.Coordinate} First coordinate.
+ * @api stable
+ */
+ol.geom.SimpleGeometry.prototype.getFirstCoordinate = function() {
+  return this.flatCoordinates.slice(0, this.stride);
+};
+
+
+/**
+ * @return {Array.<number>} Flat coordinates.
+ */
+ol.geom.SimpleGeometry.prototype.getFlatCoordinates = function() {
+  return this.flatCoordinates;
+};
+
+
+/**
+ * Return the last coordinate of the geometry.
+ * @return {ol.Coordinate} Last point.
+ * @api stable
+ */
+ol.geom.SimpleGeometry.prototype.getLastCoordinate = function() {
+  return this.flatCoordinates.slice(this.flatCoordinates.length - this.stride);
+};
+
+
+/**
+ * Return the {@link ol.geom.GeometryLayout layout} of the geometry.
+ * @return {ol.geom.GeometryLayout} Layout.
+ * @api stable
+ */
+ol.geom.SimpleGeometry.prototype.getLayout = function() {
+  return this.layout;
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.SimpleGeometry.prototype.getSimplifiedGeometry =
+    function(squaredTolerance) {
+  if (this.simplifiedGeometryRevision != this.getRevision()) {
+    goog.object.clear(this.simplifiedGeometryCache);
+    this.simplifiedGeometryMaxMinSquaredTolerance = 0;
+    this.simplifiedGeometryRevision = this.getRevision();
+  }
+  // If squaredTolerance is negative or if we know that simplification will not
+  // have any effect then just return this.
+  if (squaredTolerance < 0 ||
+      (this.simplifiedGeometryMaxMinSquaredTolerance !== 0 &&
+       squaredTolerance <= this.simplifiedGeometryMaxMinSquaredTolerance)) {
+    return this;
+  }
+  var key = squaredTolerance.toString();
+  if (this.simplifiedGeometryCache.hasOwnProperty(key)) {
+    return this.simplifiedGeometryCache[key];
+  } else {
+    var simplifiedGeometry =
+        this.getSimplifiedGeometryInternal(squaredTolerance);
+    var simplifiedFlatCoordinates = simplifiedGeometry.getFlatCoordinates();
+    if (simplifiedFlatCoordinates.length < this.flatCoordinates.length) {
+      this.simplifiedGeometryCache[key] = simplifiedGeometry;
+      return simplifiedGeometry;
+    } else {
+      // Simplification did not actually remove any coordinates.  We now know
+      // that any calls to getSimplifiedGeometry with a squaredTolerance less
+      // than or equal to the current squaredTolerance will also not have any
+      // effect.  This allows us to short circuit simplification (saving CPU
+      // cycles) and prevents the cache of simplified geometries from filling
+      // up with useless identical copies of this geometry (saving memory).
+      this.simplifiedGeometryMaxMinSquaredTolerance = squaredTolerance;
+      return this;
+    }
+  }
+};
+
+
+/**
+ * @param {number} squaredTolerance Squared tolerance.
+ * @return {ol.geom.SimpleGeometry} Simplified geometry.
+ * @protected
+ */
+ol.geom.SimpleGeometry.prototype.getSimplifiedGeometryInternal =
+    function(squaredTolerance) {
+  return this;
+};
+
+
+/**
+ * @return {number} Stride.
+ */
+ol.geom.SimpleGeometry.prototype.getStride = function() {
+  return this.stride;
+};
+
+
+/**
+ * @param {ol.geom.GeometryLayout} layout Layout.
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @protected
+ */
+ol.geom.SimpleGeometry.prototype.setFlatCoordinatesInternal =
+    function(layout, flatCoordinates) {
+  this.stride = ol.geom.SimpleGeometry.getStrideForLayout(layout);
+  this.layout = layout;
+  this.flatCoordinates = flatCoordinates;
+};
+
+
+/**
+ * @param {Array} coordinates Coordinates.
+ * @param {ol.geom.GeometryLayout=} opt_layout Layout.
+ */
+ol.geom.SimpleGeometry.prototype.setCoordinates = goog.abstractMethod;
+
+
+/**
+ * @param {ol.geom.GeometryLayout|undefined} layout Layout.
+ * @param {Array} coordinates Coordinates.
+ * @param {number} nesting Nesting.
+ * @protected
+ */
+ol.geom.SimpleGeometry.prototype.setLayout =
+    function(layout, coordinates, nesting) {
+  /** @type {number} */
+  var stride;
+  if (goog.isDef(layout)) {
+    stride = ol.geom.SimpleGeometry.getStrideForLayout(layout);
+  } else {
+    var i;
+    for (i = 0; i < nesting; ++i) {
+      if (coordinates.length === 0) {
+        this.layout = ol.geom.GeometryLayout.XY;
+        this.stride = 2;
+        return;
+      } else {
+        coordinates = /** @type {Array} */ (coordinates[0]);
+      }
+    }
+    stride = (/** @type {Array} */ (coordinates)).length;
+    layout = ol.geom.SimpleGeometry.getLayoutForStride_(stride);
+  }
+  this.layout = layout;
+  this.stride = stride;
+};
+
+
+/**
+ * @inheritDoc
+ * @api stable
+ */
+ol.geom.SimpleGeometry.prototype.applyTransform = function(transformFn) {
+  if (!goog.isNull(this.flatCoordinates)) {
+    transformFn(this.flatCoordinates, this.flatCoordinates, this.stride);
+    this.changed();
+  }
+};
+
+
+/**
+ * @inheritDoc
+ * @api stable
+ */
+ol.geom.SimpleGeometry.prototype.translate = function(deltaX, deltaY) {
+  var flatCoordinates = this.getFlatCoordinates();
+  if (!goog.isNull(flatCoordinates)) {
+    var stride = this.getStride();
+    ol.geom.flat.transform.translate(
+        flatCoordinates, 0, flatCoordinates.length, stride,
+        deltaX, deltaY, flatCoordinates);
+    this.changed();
+  }
+};
+
+
+/**
+ * @param {ol.geom.SimpleGeometry} simpleGeometry Simple geometry.
+ * @param {goog.vec.Mat4.Number} transform Transform.
+ * @param {Array.<number>=} opt_dest Destination.
+ * @return {Array.<number>} Transformed flat coordinates.
+ */
+ol.geom.transformSimpleGeometry2D =
+    function(simpleGeometry, transform, opt_dest) {
+  var flatCoordinates = simpleGeometry.getFlatCoordinates();
+  if (goog.isNull(flatCoordinates)) {
+    return null;
+  } else {
+    var stride = simpleGeometry.getStride();
+    return ol.geom.flat.transform.transform2D(
+        flatCoordinates, 0, flatCoordinates.length, stride,
+        transform, opt_dest);
+  }
+};
+
+goog.provide('ol.geom.flat.area');
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @return {number} Area.
+ */
+ol.geom.flat.area.linearRing = function(flatCoordinates, offset, end, stride) {
+  var twiceArea = 0;
+  var x1 = flatCoordinates[end - stride];
+  var y1 = flatCoordinates[end - stride + 1];
+  for (; offset < end; offset += stride) {
+    var x2 = flatCoordinates[offset];
+    var y2 = flatCoordinates[offset + 1];
+    twiceArea += y1 * x2 - x1 * y2;
+    x1 = x2;
+    y1 = y2;
+  }
+  return twiceArea / 2;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @return {number} Area.
+ */
+ol.geom.flat.area.linearRings =
+    function(flatCoordinates, offset, ends, stride) {
+  var area = 0;
+  var i, ii;
+  for (i = 0, ii = ends.length; i < ii; ++i) {
+    var end = ends[i];
+    area += ol.geom.flat.area.linearRing(flatCoordinates, offset, end, stride);
+    offset = end;
+  }
+  return area;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Endss.
+ * @param {number} stride Stride.
+ * @return {number} Area.
+ */
+ol.geom.flat.area.linearRingss =
+    function(flatCoordinates, offset, endss, stride) {
+  var area = 0;
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    var ends = endss[i];
+    area +=
+        ol.geom.flat.area.linearRings(flatCoordinates, offset, ends, stride);
+    offset = ends[ends.length - 1];
+  }
+  return area;
+};
+
+goog.provide('ol.math');
+
+goog.require('goog.asserts');
+
+
+/**
+ * @param {number} x X.
+ * @return {number} Hyperbolic cosine of x.
+ */
+ol.math.cosh = function(x) {
+  return (Math.exp(x) + Math.exp(-x)) / 2;
+};
+
+
+/**
+ * @param {number} x X.
+ * @return {number} Hyperbolic cotangent of x.
+ */
+ol.math.coth = function(x) {
+  var expMinusTwoX = Math.exp(-2 * x);
+  return (1 + expMinusTwoX) / (1 - expMinusTwoX);
+};
+
+
+/**
+ * @param {number} x X.
+ * @return {number} Hyperbolic cosecant of x.
+ */
+ol.math.csch = function(x) {
+  return 2 / (Math.exp(x) - Math.exp(-x));
+};
+
+
+/**
+ * @param {number} x X.
+ * @return {number} The smallest power of two greater than or equal to x.
+ */
+ol.math.roundUpToPowerOfTwo = function(x) {
+  goog.asserts.assert(0 < x, 'x should be larger than 0');
+  return Math.pow(2, Math.ceil(Math.log(x) / Math.LN2));
+};
+
+
+/**
+ * @param {number} x X.
+ * @return {number} Hyperbolic secant of x.
+ */
+ol.math.sech = function(x) {
+  return 2 / (Math.exp(x) + Math.exp(-x));
+};
+
+
+/**
+ * @param {number} x X.
+ * @return {number} Hyperbolic sine of x.
+ */
+ol.math.sinh = function(x) {
+  return (Math.exp(x) - Math.exp(-x)) / 2;
+};
+
+
+/**
+ * Returns the square of the closest distance between the point (x, y) and the
+ * line segment (x1, y1) to (x2, y2).
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @param {number} x1 X1.
+ * @param {number} y1 Y1.
+ * @param {number} x2 X2.
+ * @param {number} y2 Y2.
+ * @return {number} Squared distance.
+ */
+ol.math.squaredSegmentDistance = function(x, y, x1, y1, x2, y2) {
+  var dx = x2 - x1;
+  var dy = y2 - y1;
+  if (dx !== 0 || dy !== 0) {
+    var t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
+    if (t > 1) {
+      x1 = x2;
+      y1 = y2;
+    } else if (t > 0) {
+      x1 += dx * t;
+      y1 += dy * t;
+    }
+  }
+  return ol.math.squaredDistance(x, y, x1, y1);
+};
+
+
+/**
+ * Returns the square of the distance between the points (x1, y1) and (x2, y2).
+ * @param {number} x1 X1.
+ * @param {number} y1 Y1.
+ * @param {number} x2 X2.
+ * @param {number} y2 Y2.
+ * @return {number} Squared distance.
+ */
+ol.math.squaredDistance = function(x1, y1, x2, y2) {
+  var dx = x2 - x1;
+  var dy = y2 - y1;
+  return dx * dx + dy * dy;
+};
+
+
+/**
+ * @param {number} x X.
+ * @return {number} Hyperbolic tangent of x.
+ */
+ol.math.tanh = function(x) {
+  var expMinusTwoX = Math.exp(-2 * x);
+  return (1 - expMinusTwoX) / (1 + expMinusTwoX);
+};
+
+goog.provide('ol.geom.flat.closest');
+
+goog.require('goog.asserts');
+goog.require('goog.math');
+goog.require('ol.math');
+
+
+/**
+ * Returns the point on the 2D line segment flatCoordinates[offset1] to
+ * flatCoordinates[offset2] that is closest to the point (x, y).  Extra
+ * dimensions are linearly interpolated.
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset1 Offset 1.
+ * @param {number} offset2 Offset 2.
+ * @param {number} stride Stride.
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @param {Array.<number>} closestPoint Closest point.
+ */
+ol.geom.flat.closest.point =
+    function(flatCoordinates, offset1, offset2, stride, x, y, closestPoint) {
+  var x1 = flatCoordinates[offset1];
+  var y1 = flatCoordinates[offset1 + 1];
+  var dx = flatCoordinates[offset2] - x1;
+  var dy = flatCoordinates[offset2 + 1] - y1;
+  var i, offset;
+  if (dx === 0 && dy === 0) {
+    offset = offset1;
+  } else {
+    var t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
+    if (t > 1) {
+      offset = offset2;
+    } else if (t > 0) {
+      for (i = 0; i < stride; ++i) {
+        closestPoint[i] = goog.math.lerp(flatCoordinates[offset1 + i],
+            flatCoordinates[offset2 + i], t);
+      }
+      closestPoint.length = stride;
+      return;
+    } else {
+      offset = offset1;
+    }
+  }
+  for (i = 0; i < stride; ++i) {
+    closestPoint[i] = flatCoordinates[offset + i];
+  }
+  closestPoint.length = stride;
+};
+
+
+/**
+ * Return the squared of the largest distance between any pair of consecutive
+ * coordinates.
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {number} maxSquaredDelta Max squared delta.
+ * @return {number} Max squared delta.
+ */
+ol.geom.flat.closest.getMaxSquaredDelta =
+    function(flatCoordinates, offset, end, stride, maxSquaredDelta) {
+  var x1 = flatCoordinates[offset];
+  var y1 = flatCoordinates[offset + 1];
+  for (offset += stride; offset < end; offset += stride) {
+    var x2 = flatCoordinates[offset];
+    var y2 = flatCoordinates[offset + 1];
+    var squaredDelta = ol.math.squaredDistance(x1, y1, x2, y2);
+    if (squaredDelta > maxSquaredDelta) {
+      maxSquaredDelta = squaredDelta;
+    }
+    x1 = x2;
+    y1 = y2;
+  }
+  return maxSquaredDelta;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {number} maxSquaredDelta Max squared delta.
+ * @return {number} Max squared delta.
+ */
+ol.geom.flat.closest.getsMaxSquaredDelta =
+    function(flatCoordinates, offset, ends, stride, maxSquaredDelta) {
+  var i, ii;
+  for (i = 0, ii = ends.length; i < ii; ++i) {
+    var end = ends[i];
+    maxSquaredDelta = ol.geom.flat.closest.getMaxSquaredDelta(
+        flatCoordinates, offset, end, stride, maxSquaredDelta);
+    offset = end;
+  }
+  return maxSquaredDelta;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Endss.
+ * @param {number} stride Stride.
+ * @param {number} maxSquaredDelta Max squared delta.
+ * @return {number} Max squared delta.
+ */
+ol.geom.flat.closest.getssMaxSquaredDelta =
+    function(flatCoordinates, offset, endss, stride, maxSquaredDelta) {
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    var ends = endss[i];
+    maxSquaredDelta = ol.geom.flat.closest.getsMaxSquaredDelta(
+        flatCoordinates, offset, ends, stride, maxSquaredDelta);
+    offset = ends[ends.length - 1];
+  }
+  return maxSquaredDelta;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {number} maxDelta Max delta.
+ * @param {boolean} isRing Is ring.
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @param {Array.<number>} closestPoint Closest point.
+ * @param {number} minSquaredDistance Minimum squared distance.
+ * @param {Array.<number>=} opt_tmpPoint Temporary point object.
+ * @return {number} Minimum squared distance.
+ */
+ol.geom.flat.closest.getClosestPoint = function(flatCoordinates, offset, end,
+    stride, maxDelta, isRing, x, y, closestPoint, minSquaredDistance,
+    opt_tmpPoint) {
+  if (offset == end) {
+    return minSquaredDistance;
+  }
+  var i, squaredDistance;
+  if (maxDelta === 0) {
+    // All points are identical, so just test the first point.
+    squaredDistance = ol.math.squaredDistance(
+        x, y, flatCoordinates[offset], flatCoordinates[offset + 1]);
+    if (squaredDistance < minSquaredDistance) {
+      for (i = 0; i < stride; ++i) {
+        closestPoint[i] = flatCoordinates[offset + i];
+      }
+      closestPoint.length = stride;
+      return squaredDistance;
+    } else {
+      return minSquaredDistance;
+    }
+  }
+  goog.asserts.assert(maxDelta > 0, 'maxDelta should be larger than 0');
+  var tmpPoint = goog.isDef(opt_tmpPoint) ? opt_tmpPoint : [NaN, NaN];
+  var index = offset + stride;
+  while (index < end) {
+    ol.geom.flat.closest.point(
+        flatCoordinates, index - stride, index, stride, x, y, tmpPoint);
+    squaredDistance = ol.math.squaredDistance(x, y, tmpPoint[0], tmpPoint[1]);
+    if (squaredDistance < minSquaredDistance) {
+      minSquaredDistance = squaredDistance;
+      for (i = 0; i < stride; ++i) {
+        closestPoint[i] = tmpPoint[i];
+      }
+      closestPoint.length = stride;
+      index += stride;
+    } else {
+      // Skip ahead multiple points, because we know that all the skipped
+      // points cannot be any closer than the closest point we have found so
+      // far.  We know this because we know how close the current point is, how
+      // close the closest point we have found so far is, and the maximum
+      // distance between consecutive points.  For example, if we're currently
+      // at distance 10, the best we've found so far is 3, and that the maximum
+      // distance between consecutive points is 2, then we'll need to skip at
+      // least (10 - 3) / 2 == 3 (rounded down) points to have any chance of
+      // finding a closer point.  We use Math.max(..., 1) to ensure that we
+      // always advance at least one point, to avoid an infinite loop.
+      index += stride * Math.max(
+          ((Math.sqrt(squaredDistance) -
+            Math.sqrt(minSquaredDistance)) / maxDelta) | 0, 1);
+    }
+  }
+  if (isRing) {
+    // Check the closing segment.
+    ol.geom.flat.closest.point(
+        flatCoordinates, end - stride, offset, stride, x, y, tmpPoint);
+    squaredDistance = ol.math.squaredDistance(x, y, tmpPoint[0], tmpPoint[1]);
+    if (squaredDistance < minSquaredDistance) {
+      minSquaredDistance = squaredDistance;
+      for (i = 0; i < stride; ++i) {
+        closestPoint[i] = tmpPoint[i];
+      }
+      closestPoint.length = stride;
+    }
+  }
+  return minSquaredDistance;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {number} maxDelta Max delta.
+ * @param {boolean} isRing Is ring.
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @param {Array.<number>} closestPoint Closest point.
+ * @param {number} minSquaredDistance Minimum squared distance.
+ * @param {Array.<number>=} opt_tmpPoint Temporary point object.
+ * @return {number} Minimum squared distance.
+ */
+ol.geom.flat.closest.getsClosestPoint = function(flatCoordinates, offset, ends,
+    stride, maxDelta, isRing, x, y, closestPoint, minSquaredDistance,
+    opt_tmpPoint) {
+  var tmpPoint = goog.isDef(opt_tmpPoint) ? opt_tmpPoint : [NaN, NaN];
+  var i, ii;
+  for (i = 0, ii = ends.length; i < ii; ++i) {
+    var end = ends[i];
+    minSquaredDistance = ol.geom.flat.closest.getClosestPoint(
+        flatCoordinates, offset, end, stride,
+        maxDelta, isRing, x, y, closestPoint, minSquaredDistance, tmpPoint);
+    offset = end;
+  }
+  return minSquaredDistance;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Endss.
+ * @param {number} stride Stride.
+ * @param {number} maxDelta Max delta.
+ * @param {boolean} isRing Is ring.
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @param {Array.<number>} closestPoint Closest point.
+ * @param {number} minSquaredDistance Minimum squared distance.
+ * @param {Array.<number>=} opt_tmpPoint Temporary point object.
+ * @return {number} Minimum squared distance.
+ */
+ol.geom.flat.closest.getssClosestPoint = function(flatCoordinates, offset,
+    endss, stride, maxDelta, isRing, x, y, closestPoint, minSquaredDistance,
+    opt_tmpPoint) {
+  var tmpPoint = goog.isDef(opt_tmpPoint) ? opt_tmpPoint : [NaN, NaN];
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    var ends = endss[i];
+    minSquaredDistance = ol.geom.flat.closest.getsClosestPoint(
+        flatCoordinates, offset, ends, stride,
+        maxDelta, isRing, x, y, closestPoint, minSquaredDistance, tmpPoint);
+    offset = ends[ends.length - 1];
+  }
+  return minSquaredDistance;
+};
+
+goog.provide('ol.geom.flat.deflate');
+
+goog.require('goog.asserts');
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {ol.Coordinate} coordinate Coordinate.
+ * @param {number} stride Stride.
+ * @return {number} offset Offset.
+ */
+ol.geom.flat.deflate.coordinate =
+    function(flatCoordinates, offset, coordinate, stride) {
+  goog.asserts.assert(coordinate.length == stride,
+      'length of the coordinate array should match stride');
+  var i, ii;
+  for (i = 0, ii = coordinate.length; i < ii; ++i) {
+    flatCoordinates[offset++] = coordinate[i];
+  }
+  return offset;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<ol.Coordinate>} coordinates Coordinates.
+ * @param {number} stride Stride.
+ * @return {number} offset Offset.
+ */
+ol.geom.flat.deflate.coordinates =
+    function(flatCoordinates, offset, coordinates, stride) {
+  var i, ii;
+  for (i = 0, ii = coordinates.length; i < ii; ++i) {
+    var coordinate = coordinates[i];
+    goog.asserts.assert(coordinate.length == stride,
+        'length of coordinate array should match stride');
+    var j;
+    for (j = 0; j < stride; ++j) {
+      flatCoordinates[offset++] = coordinate[j];
+    }
+  }
+  return offset;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<ol.Coordinate>>} coordinatess Coordinatess.
+ * @param {number} stride Stride.
+ * @param {Array.<number>=} opt_ends Ends.
+ * @return {Array.<number>} Ends.
+ */
+ol.geom.flat.deflate.coordinatess =
+    function(flatCoordinates, offset, coordinatess, stride, opt_ends) {
+  var ends = goog.isDef(opt_ends) ? opt_ends : [];
+  var i = 0;
+  var j, jj;
+  for (j = 0, jj = coordinatess.length; j < jj; ++j) {
+    var end = ol.geom.flat.deflate.coordinates(
+        flatCoordinates, offset, coordinatess[j], stride);
+    ends[i++] = end;
+    offset = end;
+  }
+  ends.length = i;
+  return ends;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<Array.<ol.Coordinate>>>} coordinatesss Coordinatesss.
+ * @param {number} stride Stride.
+ * @param {Array.<Array.<number>>=} opt_endss Endss.
+ * @return {Array.<Array.<number>>} Endss.
+ */
+ol.geom.flat.deflate.coordinatesss =
+    function(flatCoordinates, offset, coordinatesss, stride, opt_endss) {
+  var endss = goog.isDef(opt_endss) ? opt_endss : [];
+  var i = 0;
+  var j, jj;
+  for (j = 0, jj = coordinatesss.length; j < jj; ++j) {
+    var ends = ol.geom.flat.deflate.coordinatess(
+        flatCoordinates, offset, coordinatesss[j], stride, endss[i]);
+    endss[i++] = ends;
+    offset = ends[ends.length - 1];
+  }
+  endss.length = i;
+  return endss;
+};
+
+goog.provide('ol.geom.flat.inflate');
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {Array.<ol.Coordinate>=} opt_coordinates Coordinates.
+ * @return {Array.<ol.Coordinate>} Coordinates.
+ */
+ol.geom.flat.inflate.coordinates =
+    function(flatCoordinates, offset, end, stride, opt_coordinates) {
+  var coordinates = goog.isDef(opt_coordinates) ? opt_coordinates : [];
+  var i = 0;
+  var j;
+  for (j = offset; j < end; j += stride) {
+    coordinates[i++] = flatCoordinates.slice(j, j + stride);
+  }
+  coordinates.length = i;
+  return coordinates;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {Array.<Array.<ol.Coordinate>>=} opt_coordinatess Coordinatess.
+ * @return {Array.<Array.<ol.Coordinate>>} Coordinatess.
+ */
+ol.geom.flat.inflate.coordinatess =
+    function(flatCoordinates, offset, ends, stride, opt_coordinatess) {
+  var coordinatess = goog.isDef(opt_coordinatess) ? opt_coordinatess : [];
+  var i = 0;
+  var j, jj;
+  for (j = 0, jj = ends.length; j < jj; ++j) {
+    var end = ends[j];
+    coordinatess[i++] = ol.geom.flat.inflate.coordinates(
+        flatCoordinates, offset, end, stride, coordinatess[i]);
+    offset = end;
+  }
+  coordinatess.length = i;
+  return coordinatess;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Endss.
+ * @param {number} stride Stride.
+ * @param {Array.<Array.<Array.<ol.Coordinate>>>=} opt_coordinatesss
+ *     Coordinatesss.
+ * @return {Array.<Array.<Array.<ol.Coordinate>>>} Coordinatesss.
+ */
+ol.geom.flat.inflate.coordinatesss =
+    function(flatCoordinates, offset, endss, stride, opt_coordinatesss) {
+  var coordinatesss = goog.isDef(opt_coordinatesss) ? opt_coordinatesss : [];
+  var i = 0;
+  var j, jj;
+  for (j = 0, jj = endss.length; j < jj; ++j) {
+    var ends = endss[j];
+    coordinatesss[i++] = ol.geom.flat.inflate.coordinatess(
+        flatCoordinates, offset, ends, stride, coordinatesss[i]);
+    offset = ends[ends.length - 1];
+  }
+  coordinatesss.length = i;
+  return coordinatesss;
+};
+
+// Based on simplify-js https://github.com/mourner/simplify-js
+// Copyright (c) 2012, Vladimir Agafonkin
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//    1. Redistributions of source code must retain the above copyright notice,
+//       this list of conditions and the following disclaimer.
+//
+//    2. Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
+goog.provide('ol.geom.flat.simplify');
+
+goog.require('ol.math');
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {number} squaredTolerance Squared tolerance.
+ * @param {boolean} highQuality Highest quality.
+ * @param {Array.<number>=} opt_simplifiedFlatCoordinates Simplified flat
+ *     coordinates.
+ * @return {Array.<number>} Simplified line string.
+ */
+ol.geom.flat.simplify.lineString = function(flatCoordinates, offset, end,
+    stride, squaredTolerance, highQuality, opt_simplifiedFlatCoordinates) {
+  var simplifiedFlatCoordinates = goog.isDef(opt_simplifiedFlatCoordinates) ?
+      opt_simplifiedFlatCoordinates : [];
+  if (!highQuality) {
+    end = ol.geom.flat.simplify.radialDistance(flatCoordinates, offset, end,
+        stride, squaredTolerance,
+        simplifiedFlatCoordinates, 0);
+    flatCoordinates = simplifiedFlatCoordinates;
+    offset = 0;
+    stride = 2;
+  }
+  simplifiedFlatCoordinates.length = ol.geom.flat.simplify.douglasPeucker(
+      flatCoordinates, offset, end, stride, squaredTolerance,
+      simplifiedFlatCoordinates, 0);
+  return simplifiedFlatCoordinates;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {number} squaredTolerance Squared tolerance.
+ * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
+ *     coordinates.
+ * @param {number} simplifiedOffset Simplified offset.
+ * @return {number} Simplified offset.
+ */
+ol.geom.flat.simplify.douglasPeucker = function(flatCoordinates, offset, end,
+    stride, squaredTolerance, simplifiedFlatCoordinates, simplifiedOffset) {
+  var n = (end - offset) / stride;
+  if (n < 3) {
+    for (; offset < end; offset += stride) {
+      simplifiedFlatCoordinates[simplifiedOffset++] =
+          flatCoordinates[offset];
+      simplifiedFlatCoordinates[simplifiedOffset++] =
+          flatCoordinates[offset + 1];
+    }
+    return simplifiedOffset;
+  }
+  /** @type {Array.<number>} */
+  var markers = new Array(n);
+  markers[0] = 1;
+  markers[n - 1] = 1;
+  /** @type {Array.<number>} */
+  var stack = [offset, end - stride];
+  var index = 0;
+  var i;
+  while (stack.length > 0) {
+    var last = stack.pop();
+    var first = stack.pop();
+    var maxSquaredDistance = 0;
+    var x1 = flatCoordinates[first];
+    var y1 = flatCoordinates[first + 1];
+    var x2 = flatCoordinates[last];
+    var y2 = flatCoordinates[last + 1];
+    for (i = first + stride; i < last; i += stride) {
+      var x = flatCoordinates[i];
+      var y = flatCoordinates[i + 1];
+      var squaredDistance = ol.math.squaredSegmentDistance(
+          x, y, x1, y1, x2, y2);
+      if (squaredDistance > maxSquaredDistance) {
+        index = i;
+        maxSquaredDistance = squaredDistance;
+      }
+    }
+    if (maxSquaredDistance > squaredTolerance) {
+      markers[(index - offset) / stride] = 1;
+      if (first + stride < index) {
+        stack.push(first, index);
+      }
+      if (index + stride < last) {
+        stack.push(index, last);
+      }
+    }
+  }
+  for (i = 0; i < n; ++i) {
+    if (markers[i]) {
+      simplifiedFlatCoordinates[simplifiedOffset++] =
+          flatCoordinates[offset + i * stride];
+      simplifiedFlatCoordinates[simplifiedOffset++] =
+          flatCoordinates[offset + i * stride + 1];
+    }
+  }
+  return simplifiedOffset;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {number} squaredTolerance Squared tolerance.
+ * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
+ *     coordinates.
+ * @param {number} simplifiedOffset Simplified offset.
+ * @param {Array.<number>} simplifiedEnds Simplified ends.
+ * @return {number} Simplified offset.
+ */
+ol.geom.flat.simplify.douglasPeuckers = function(flatCoordinates, offset,
+    ends, stride, squaredTolerance, simplifiedFlatCoordinates,
+    simplifiedOffset, simplifiedEnds) {
+  var i, ii;
+  for (i = 0, ii = ends.length; i < ii; ++i) {
+    var end = ends[i];
+    simplifiedOffset = ol.geom.flat.simplify.douglasPeucker(
+        flatCoordinates, offset, end, stride, squaredTolerance,
+        simplifiedFlatCoordinates, simplifiedOffset);
+    simplifiedEnds.push(simplifiedOffset);
+    offset = end;
+  }
+  return simplifiedOffset;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Endss.
+ * @param {number} stride Stride.
+ * @param {number} squaredTolerance Squared tolerance.
+ * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
+ *     coordinates.
+ * @param {number} simplifiedOffset Simplified offset.
+ * @param {Array.<Array.<number>>} simplifiedEndss Simplified endss.
+ * @return {number} Simplified offset.
+ */
+ol.geom.flat.simplify.douglasPeuckerss = function(
+    flatCoordinates, offset, endss, stride, squaredTolerance,
+    simplifiedFlatCoordinates, simplifiedOffset, simplifiedEndss) {
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    var ends = endss[i];
+    var simplifiedEnds = [];
+    simplifiedOffset = ol.geom.flat.simplify.douglasPeuckers(
+        flatCoordinates, offset, ends, stride, squaredTolerance,
+        simplifiedFlatCoordinates, simplifiedOffset, simplifiedEnds);
+    simplifiedEndss.push(simplifiedEnds);
+    offset = ends[ends.length - 1];
+  }
+  return simplifiedOffset;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {number} squaredTolerance Squared tolerance.
+ * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
+ *     coordinates.
+ * @param {number} simplifiedOffset Simplified offset.
+ * @return {number} Simplified offset.
+ */
+ol.geom.flat.simplify.radialDistance = function(flatCoordinates, offset, end,
+    stride, squaredTolerance, simplifiedFlatCoordinates, simplifiedOffset) {
+  if (end <= offset + stride) {
+    // zero or one point, no simplification possible, so copy and return
+    for (; offset < end; offset += stride) {
+      simplifiedFlatCoordinates[simplifiedOffset++] = flatCoordinates[offset];
+      simplifiedFlatCoordinates[simplifiedOffset++] =
+          flatCoordinates[offset + 1];
+    }
+    return simplifiedOffset;
+  }
+  var x1 = flatCoordinates[offset];
+  var y1 = flatCoordinates[offset + 1];
+  // copy first point
+  simplifiedFlatCoordinates[simplifiedOffset++] = x1;
+  simplifiedFlatCoordinates[simplifiedOffset++] = y1;
+  var x2 = x1;
+  var y2 = y1;
+  for (offset += stride; offset < end; offset += stride) {
+    x2 = flatCoordinates[offset];
+    y2 = flatCoordinates[offset + 1];
+    if (ol.math.squaredDistance(x1, y1, x2, y2) > squaredTolerance) {
+      // copy point at offset
+      simplifiedFlatCoordinates[simplifiedOffset++] = x2;
+      simplifiedFlatCoordinates[simplifiedOffset++] = y2;
+      x1 = x2;
+      y1 = y2;
+    }
+  }
+  if (x2 != x1 || y2 != y1) {
+    // copy last point
+    simplifiedFlatCoordinates[simplifiedOffset++] = x2;
+    simplifiedFlatCoordinates[simplifiedOffset++] = y2;
+  }
+  return simplifiedOffset;
+};
+
+
+/**
+ * @param {number} value Value.
+ * @param {number} tolerance Tolerance.
+ * @return {number} Rounded value.
+ */
+ol.geom.flat.simplify.snap = function(value, tolerance) {
+  return tolerance * Math.round(value / tolerance);
+};
+
+
+/**
+ * Simplifies a line string using an algorithm designed by Tim Schaub.
+ * Coordinates are snapped to the nearest value in a virtual grid and
+ * consecutive duplicate coordinates are discarded.  This effectively preserves
+ * topology as the simplification of any subsection of a line string is
+ * independent of the rest of the line string.  This means that, for examples,
+ * the common edge between two polygons will be simplified to the same line
+ * string independently in both polygons.  This implementation uses a single
+ * pass over the coordinates and eliminates intermediate collinear points.
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {number} tolerance Tolerance.
+ * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
+ *     coordinates.
+ * @param {number} simplifiedOffset Simplified offset.
+ * @return {number} Simplified offset.
+ */
+ol.geom.flat.simplify.quantize = function(flatCoordinates, offset, end, stride,
+    tolerance, simplifiedFlatCoordinates, simplifiedOffset) {
+  // do nothing if the line is empty
+  if (offset == end) {
+    return simplifiedOffset;
+  }
+  // snap the first coordinate (P1)
+  var x1 = ol.geom.flat.simplify.snap(flatCoordinates[offset], tolerance);
+  var y1 = ol.geom.flat.simplify.snap(flatCoordinates[offset + 1], tolerance);
+  offset += stride;
+  // add the first coordinate to the output
+  simplifiedFlatCoordinates[simplifiedOffset++] = x1;
+  simplifiedFlatCoordinates[simplifiedOffset++] = y1;
+  // find the next coordinate that does not snap to the same value as the first
+  // coordinate (P2)
+  var x2, y2;
+  do {
+    x2 = ol.geom.flat.simplify.snap(flatCoordinates[offset], tolerance);
+    y2 = ol.geom.flat.simplify.snap(flatCoordinates[offset + 1], tolerance);
+    offset += stride;
+    if (offset == end) {
+      // all coordinates snap to the same value, the line collapses to a point
+      // push the last snapped value anyway to ensure that the output contains
+      // at least two points
+      // FIXME should we really return at least two points anyway?
+      simplifiedFlatCoordinates[simplifiedOffset++] = x2;
+      simplifiedFlatCoordinates[simplifiedOffset++] = y2;
+      return simplifiedOffset;
+    }
+  } while (x2 == x1 && y2 == y1);
+  while (offset < end) {
+    var x3, y3;
+    // snap the next coordinate (P3)
+    x3 = ol.geom.flat.simplify.snap(flatCoordinates[offset], tolerance);
+    y3 = ol.geom.flat.simplify.snap(flatCoordinates[offset + 1], tolerance);
+    offset += stride;
+    // skip P3 if it is equal to P2
+    if (x3 == x2 && y3 == y2) {
+      continue;
+    }
+    // calculate the delta between P1 and P2
+    var dx1 = x2 - x1;
+    var dy1 = y2 - y1;
+    // calculate the delta between P3 and P1
+    var dx2 = x3 - x1;
+    var dy2 = y3 - y1;
+    // if P1, P2, and P3 are colinear and P3 is further from P1 than P2 is from
+    // P1 in the same direction then P2 is on the straight line between P1 and
+    // P3
+    if ((dx1 * dy2 == dy1 * dx2) &&
+        ((dx1 < 0 && dx2 < dx1) || dx1 == dx2 || (dx1 > 0 && dx2 > dx1)) &&
+        ((dy1 < 0 && dy2 < dy1) || dy1 == dy2 || (dy1 > 0 && dy2 > dy1))) {
+      // discard P2 and set P2 = P3
+      x2 = x3;
+      y2 = y3;
+      continue;
+    }
+    // either P1, P2, and P3 are not colinear, or they are colinear but P3 is
+    // between P3 and P1 or on the opposite half of the line to P2.  add P2,
+    // and continue with P1 = P2 and P2 = P3
+    simplifiedFlatCoordinates[simplifiedOffset++] = x2;
+    simplifiedFlatCoordinates[simplifiedOffset++] = y2;
+    x1 = x2;
+    y1 = y2;
+    x2 = x3;
+    y2 = y3;
+  }
+  // add the last point (P2)
+  simplifiedFlatCoordinates[simplifiedOffset++] = x2;
+  simplifiedFlatCoordinates[simplifiedOffset++] = y2;
+  return simplifiedOffset;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {number} tolerance Tolerance.
+ * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
+ *     coordinates.
+ * @param {number} simplifiedOffset Simplified offset.
+ * @param {Array.<number>} simplifiedEnds Simplified ends.
+ * @return {number} Simplified offset.
+ */
+ol.geom.flat.simplify.quantizes = function(
+    flatCoordinates, offset, ends, stride,
+    tolerance,
+    simplifiedFlatCoordinates, simplifiedOffset, simplifiedEnds) {
+  var i, ii;
+  for (i = 0, ii = ends.length; i < ii; ++i) {
+    var end = ends[i];
+    simplifiedOffset = ol.geom.flat.simplify.quantize(
+        flatCoordinates, offset, end, stride,
+        tolerance,
+        simplifiedFlatCoordinates, simplifiedOffset);
+    simplifiedEnds.push(simplifiedOffset);
+    offset = end;
+  }
+  return simplifiedOffset;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Endss.
+ * @param {number} stride Stride.
+ * @param {number} tolerance Tolerance.
+ * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
+ *     coordinates.
+ * @param {number} simplifiedOffset Simplified offset.
+ * @param {Array.<Array.<number>>} simplifiedEndss Simplified endss.
+ * @return {number} Simplified offset.
+ */
+ol.geom.flat.simplify.quantizess = function(
+    flatCoordinates, offset, endss, stride,
+    tolerance,
+    simplifiedFlatCoordinates, simplifiedOffset, simplifiedEndss) {
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    var ends = endss[i];
+    var simplifiedEnds = [];
+    simplifiedOffset = ol.geom.flat.simplify.quantizes(
+        flatCoordinates, offset, ends, stride,
+        tolerance,
+        simplifiedFlatCoordinates, simplifiedOffset, simplifiedEnds);
+    simplifiedEndss.push(simplifiedEnds);
+    offset = ends[ends.length - 1];
+  }
+  return simplifiedOffset;
+};
+
+goog.provide('ol.geom.LinearRing');
+
+goog.require('ol.extent');
+goog.require('ol.geom.GeometryLayout');
+goog.require('ol.geom.GeometryType');
+goog.require('ol.geom.SimpleGeometry');
+goog.require('ol.geom.flat.area');
+goog.require('ol.geom.flat.closest');
+goog.require('ol.geom.flat.deflate');
+goog.require('ol.geom.flat.inflate');
+goog.require('ol.geom.flat.simplify');
+
+
+
+/**
+ * @classdesc
+ * Linear ring geometry. Only used as part of polygon; cannot be rendered
+ * on its own.
+ *
+ * @constructor
+ * @extends {ol.geom.SimpleGeometry}
+ * @param {Array.<ol.Coordinate>} coordinates Coordinates.
+ * @param {ol.geom.GeometryLayout=} opt_layout Layout.
+ * @api stable
+ */
+ol.geom.LinearRing = function(coordinates, opt_layout) {
+
+  goog.base(this);
+
+  /**
+   * @private
+   * @type {number}
+   */
+  this.maxDelta_ = -1;
+
+  /**
+   * @private
+   * @type {number}
+   */
+  this.maxDeltaRevision_ = -1;
+
+  this.setCoordinates(coordinates,
+      /** @type {ol.geom.GeometryLayout|undefined} */ (opt_layout));
+
+};
+goog.inherits(ol.geom.LinearRing, ol.geom.SimpleGeometry);
+
+
+/**
+ * Make a complete copy of the geometry.
+ * @return {!ol.geom.LinearRing} Clone.
+ * @api stable
+ */
+ol.geom.LinearRing.prototype.clone = function() {
+  var linearRing = new ol.geom.LinearRing(null);
+  linearRing.setFlatCoordinates(this.layout, this.flatCoordinates.slice());
+  return linearRing;
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.LinearRing.prototype.closestPointXY =
+    function(x, y, closestPoint, minSquaredDistance) {
+  if (minSquaredDistance <
+      ol.extent.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+    return minSquaredDistance;
+  }
+  if (this.maxDeltaRevision_ != this.getRevision()) {
+    this.maxDelta_ = Math.sqrt(ol.geom.flat.closest.getMaxSquaredDelta(
+        this.flatCoordinates, 0, this.flatCoordinates.length, this.stride, 0));
+    this.maxDeltaRevision_ = this.getRevision();
+  }
+  return ol.geom.flat.closest.getClosestPoint(
+      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride,
+      this.maxDelta_, true, x, y, closestPoint, minSquaredDistance);
+};
+
+
+/**
+ * Return the area of the linear ring on projected plane.
+ * @return {number} Area (on projected plane).
+ * @api stable
+ */
+ol.geom.LinearRing.prototype.getArea = function() {
+  return ol.geom.flat.area.linearRing(
+      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride);
+};
+
+
+/**
+ * Return the coordinates of the linear ring.
+ * @return {Array.<ol.Coordinate>} Coordinates.
+ * @api stable
+ */
+ol.geom.LinearRing.prototype.getCoordinates = function() {
+  return ol.geom.flat.inflate.coordinates(
+      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride);
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.LinearRing.prototype.getSimplifiedGeometryInternal =
+    function(squaredTolerance) {
+  var simplifiedFlatCoordinates = [];
+  simplifiedFlatCoordinates.length = ol.geom.flat.simplify.douglasPeucker(
+      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride,
+      squaredTolerance, simplifiedFlatCoordinates, 0);
+  var simplifiedLinearRing = new ol.geom.LinearRing(null);
+  simplifiedLinearRing.setFlatCoordinates(
+      ol.geom.GeometryLayout.XY, simplifiedFlatCoordinates);
+  return simplifiedLinearRing;
+};
+
+
+/**
+ * @inheritDoc
+ * @api stable
+ */
+ol.geom.LinearRing.prototype.getType = function() {
+  return ol.geom.GeometryType.LINEAR_RING;
+};
+
+
+/**
+ * Set the coordinates of the linear ring.
+ * @param {Array.<ol.Coordinate>} coordinates Coordinates.
+ * @param {ol.geom.GeometryLayout=} opt_layout Layout.
+ * @api stable
+ */
+ol.geom.LinearRing.prototype.setCoordinates =
+    function(coordinates, opt_layout) {
+  if (goog.isNull(coordinates)) {
+    this.setFlatCoordinates(ol.geom.GeometryLayout.XY, null);
+  } else {
+    this.setLayout(opt_layout, coordinates, 1);
+    if (goog.isNull(this.flatCoordinates)) {
+      this.flatCoordinates = [];
+    }
+    this.flatCoordinates.length = ol.geom.flat.deflate.coordinates(
+        this.flatCoordinates, 0, coordinates, this.stride);
+    this.changed();
+  }
+};
+
+
+/**
+ * @param {ol.geom.GeometryLayout} layout Layout.
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ */
+ol.geom.LinearRing.prototype.setFlatCoordinates =
+    function(layout, flatCoordinates) {
+  this.setFlatCoordinatesInternal(layout, flatCoordinates);
+  this.changed();
+};
+
+goog.provide('ol.geom.Point');
+
+goog.require('ol.extent');
+goog.require('ol.geom.GeometryLayout');
+goog.require('ol.geom.GeometryType');
+goog.require('ol.geom.SimpleGeometry');
+goog.require('ol.geom.flat.deflate');
+goog.require('ol.math');
+
+
+
+/**
+ * @classdesc
+ * Point geometry.
+ *
+ * @constructor
+ * @extends {ol.geom.SimpleGeometry}
+ * @param {ol.Coordinate} coordinates Coordinates.
+ * @param {ol.geom.GeometryLayout=} opt_layout Layout.
+ * @api stable
+ */
+ol.geom.Point = function(coordinates, opt_layout) {
+  goog.base(this);
+  this.setCoordinates(coordinates,
+      /** @type {ol.geom.GeometryLayout|undefined} */ (opt_layout));
+};
+goog.inherits(ol.geom.Point, ol.geom.SimpleGeometry);
+
+
+/**
+ * Make a complete copy of the geometry.
+ * @return {!ol.geom.Point} Clone.
+ * @api stable
+ */
+ol.geom.Point.prototype.clone = function() {
+  var point = new ol.geom.Point(null);
+  point.setFlatCoordinates(this.layout, this.flatCoordinates.slice());
+  return point;
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.Point.prototype.closestPointXY =
+    function(x, y, closestPoint, minSquaredDistance) {
+  var flatCoordinates = this.flatCoordinates;
+  var squaredDistance = ol.math.squaredDistance(
+      x, y, flatCoordinates[0], flatCoordinates[1]);
+  if (squaredDistance < minSquaredDistance) {
+    var stride = this.stride;
+    var i;
+    for (i = 0; i < stride; ++i) {
+      closestPoint[i] = flatCoordinates[i];
+    }
+    closestPoint.length = stride;
+    return squaredDistance;
+  } else {
+    return minSquaredDistance;
+  }
+};
+
+
+/**
+ * Return the coordinate of the point.
+ * @return {ol.Coordinate} Coordinates.
+ * @api stable
+ */
+ol.geom.Point.prototype.getCoordinates = function() {
+  return goog.isNull(this.flatCoordinates) ? [] : this.flatCoordinates.slice();
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.Point.prototype.computeExtent = function(extent) {
+  return ol.extent.createOrUpdateFromCoordinate(this.flatCoordinates, extent);
+};
+
+
+/**
+ * @inheritDoc
+ * @api stable
+ */
+ol.geom.Point.prototype.getType = function() {
+  return ol.geom.GeometryType.POINT;
+};
+
+
+/**
+ * @inheritDoc
+ * @api stable
+ */
+ol.geom.Point.prototype.intersectsExtent = function(extent) {
+  return ol.extent.containsXY(extent,
+      this.flatCoordinates[0], this.flatCoordinates[1]);
+};
+
+
+/**
+ * Set the coordinate of the point.
+ * @param {ol.Coordinate} coordinates Coordinates.
+ * @param {ol.geom.GeometryLayout=} opt_layout Layout.
+ * @api stable
+ */
+ol.geom.Point.prototype.setCoordinates = function(coordinates, opt_layout) {
+  if (goog.isNull(coordinates)) {
+    this.setFlatCoordinates(ol.geom.GeometryLayout.XY, null);
+  } else {
+    this.setLayout(opt_layout, coordinates, 0);
+    if (goog.isNull(this.flatCoordinates)) {
+      this.flatCoordinates = [];
+    }
+    this.flatCoordinates.length = ol.geom.flat.deflate.coordinate(
+        this.flatCoordinates, 0, coordinates, this.stride);
+    this.changed();
+  }
+};
+
+
+/**
+ * @param {ol.geom.GeometryLayout} layout Layout.
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ */
+ol.geom.Point.prototype.setFlatCoordinates = function(layout, flatCoordinates) {
+  this.setFlatCoordinatesInternal(layout, flatCoordinates);
+  this.changed();
+};
+
+goog.provide('ol.geom.flat.contains');
+
+goog.require('goog.asserts');
+goog.require('ol.extent');
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {ol.Extent} extent Extent.
+ * @return {boolean} Contains extent.
+ */
+ol.geom.flat.contains.linearRingContainsExtent =
+    function(flatCoordinates, offset, end, stride, extent) {
+  var outside = ol.extent.forEachCorner(extent,
+      /**
+       * @param {ol.Coordinate} coordinate Coordinate.
+       */
+      function(coordinate) {
+        return !ol.geom.flat.contains.linearRingContainsXY(flatCoordinates,
+            offset, end, stride, coordinate[0], coordinate[1]);
+      });
+  return !outside;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @return {boolean} Contains (x, y).
+ */
+ol.geom.flat.contains.linearRingContainsXY =
+    function(flatCoordinates, offset, end, stride, x, y) {
+  // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
+  var contains = false;
+  var x1 = flatCoordinates[end - stride];
+  var y1 = flatCoordinates[end - stride + 1];
+  for (; offset < end; offset += stride) {
+    var x2 = flatCoordinates[offset];
+    var y2 = flatCoordinates[offset + 1];
+    var intersect = ((y1 > y) != (y2 > y)) &&
+        (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1);
+    if (intersect) {
+      contains = !contains;
+    }
+    x1 = x2;
+    y1 = y2;
+  }
+  return contains;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @return {boolean} Contains (x, y).
+ */
+ol.geom.flat.contains.linearRingsContainsXY =
+    function(flatCoordinates, offset, ends, stride, x, y) {
+  goog.asserts.assert(ends.length > 0, 'ends should not be an empty array');
+  if (ends.length === 0) {
+    return false;
+  }
+  if (!ol.geom.flat.contains.linearRingContainsXY(
+      flatCoordinates, offset, ends[0], stride, x, y)) {
+    return false;
+  }
+  var i, ii;
+  for (i = 1, ii = ends.length; i < ii; ++i) {
+    if (ol.geom.flat.contains.linearRingContainsXY(
+        flatCoordinates, ends[i - 1], ends[i], stride, x, y)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Endss.
+ * @param {number} stride Stride.
+ * @param {number} x X.
+ * @param {number} y Y.
+ * @return {boolean} Contains (x, y).
+ */
+ol.geom.flat.contains.linearRingssContainsXY =
+    function(flatCoordinates, offset, endss, stride, x, y) {
+  goog.asserts.assert(endss.length > 0, 'endss should not be an empty array');
+  if (endss.length === 0) {
+    return false;
+  }
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    var ends = endss[i];
+    if (ol.geom.flat.contains.linearRingsContainsXY(
+        flatCoordinates, offset, ends, stride, x, y)) {
+      return true;
+    }
+    offset = ends[ends.length - 1];
+  }
+  return false;
+};
+
+goog.provide('ol.geom.flat.interiorpoint');
+
+goog.require('goog.asserts');
+goog.require('ol.geom.flat.contains');
+
+
+/**
+ * Calculates a point that is likely to lie in the interior of the linear rings.
+ * Inspired by JTS's com.vividsolutions.jts.geom.Geometry#getInteriorPoint.
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {Array.<number>} flatCenters Flat centers.
+ * @param {number} flatCentersOffset Flat center offset.
+ * @param {Array.<number>=} opt_dest Destination.
+ * @return {Array.<number>} Destination.
+ */
+ol.geom.flat.interiorpoint.linearRings = function(flatCoordinates, offset,
+    ends, stride, flatCenters, flatCentersOffset, opt_dest) {
+  var i, ii, x, x1, x2, y1, y2;
+  var y = flatCenters[flatCentersOffset + 1];
+  /** @type {Array.<number>} */
+  var intersections = [];
+  // Calculate intersections with the horizontal line
+  var end = ends[0];
+  x1 = flatCoordinates[end - stride];
+  y1 = flatCoordinates[end - stride + 1];
+  for (i = offset; i < end; i += stride) {
+    x2 = flatCoordinates[i];
+    y2 = flatCoordinates[i + 1];
+    if ((y <= y1 && y2 <= y) || (y1 <= y && y <= y2)) {
+      x = (y - y1) / (y2 - y1) * (x2 - x1) + x1;
+      intersections.push(x);
+    }
+    x1 = x2;
+    y1 = y2;
+  }
+  // Find the longest segment of the horizontal line that has its center point
+  // inside the linear ring.
+  var pointX = NaN;
+  var maxSegmentLength = -Infinity;
+  intersections.sort();
+  x1 = intersections[0];
+  for (i = 1, ii = intersections.length; i < ii; ++i) {
+    x2 = intersections[i];
+    var segmentLength = Math.abs(x2 - x1);
+    if (segmentLength > maxSegmentLength) {
+      x = (x1 + x2) / 2;
+      if (ol.geom.flat.contains.linearRingsContainsXY(
+          flatCoordinates, offset, ends, stride, x, y)) {
+        pointX = x;
+        maxSegmentLength = segmentLength;
+      }
+    }
+    x1 = x2;
+  }
+  if (isNaN(pointX)) {
+    // There is no horizontal line that has its center point inside the linear
+    // ring.  Use the center of the the linear ring's extent.
+    pointX = flatCenters[flatCentersOffset];
+  }
+  if (goog.isDef(opt_dest)) {
+    opt_dest.push(pointX, y);
+    return opt_dest;
+  } else {
+    return [pointX, y];
+  }
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Endss.
+ * @param {number} stride Stride.
+ * @param {Array.<number>} flatCenters Flat centers.
+ * @return {Array.<number>} Interior points.
+ */
+ol.geom.flat.interiorpoint.linearRingss =
+    function(flatCoordinates, offset, endss, stride, flatCenters) {
+  goog.asserts.assert(2 * endss.length == flatCenters.length,
+      'endss.length times 2 should be flatCenters.length');
+  var interiorPoints = [];
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    var ends = endss[i];
+    interiorPoints = ol.geom.flat.interiorpoint.linearRings(flatCoordinates,
+        offset, ends, stride, flatCenters, 2 * i, interiorPoints);
+    offset = ends[ends.length - 1];
+  }
+  return interiorPoints;
+};
+
+goog.provide('ol.geom.flat.segments');
+
+
+/**
+ * This function calls `callback` for each segment of the flat coordinates
+ * array. If the callback returns a truthy value the function returns that
+ * value immediately. Otherwise the function returns `false`.
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {function(this: S, ol.Coordinate, ol.Coordinate): T} callback Function
+ *     called for each segment.
+ * @param {S=} opt_this The object to be used as the value of 'this'
+ *     within callback.
+ * @return {T|boolean} Value.
+ * @template T,S
+ */
+ol.geom.flat.segments.forEach =
+    function(flatCoordinates, offset, end, stride, callback, opt_this) {
+  var point1 = [flatCoordinates[offset], flatCoordinates[offset + 1]];
+  var point2 = [];
+  var ret;
+  for (; (offset + stride) < end; offset += stride) {
+    point2[0] = flatCoordinates[offset + stride];
+    point2[1] = flatCoordinates[offset + stride + 1];
+    ret = callback.call(opt_this, point1, point2);
+    if (ret) {
+      return ret;
+    }
+    point1[0] = point2[0];
+    point1[1] = point2[1];
+  }
+  return false;
+};
+
+goog.provide('ol.geom.flat.intersectsextent');
+
+goog.require('goog.asserts');
+goog.require('ol.extent');
+goog.require('ol.geom.flat.contains');
+goog.require('ol.geom.flat.segments');
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {ol.Extent} extent Extent.
+ * @return {boolean} True if the geometry and the extent intersect.
+ */
+ol.geom.flat.intersectsextent.lineString =
+    function(flatCoordinates, offset, end, stride, extent) {
+  var coordinatesExtent = ol.extent.extendFlatCoordinates(
+      ol.extent.createEmpty(), flatCoordinates, offset, end, stride);
+  if (!ol.extent.intersects(extent, coordinatesExtent)) {
+    return false;
+  }
+  if (ol.extent.containsExtent(extent, coordinatesExtent)) {
+    return true;
+  }
+  if (coordinatesExtent[0] >= extent[0] &&
+      coordinatesExtent[2] <= extent[2]) {
+    return true;
+  }
+  if (coordinatesExtent[1] >= extent[1] &&
+      coordinatesExtent[3] <= extent[3]) {
+    return true;
+  }
+  return ol.geom.flat.segments.forEach(flatCoordinates, offset, end, stride,
+      /**
+       * @param {ol.Coordinate} point1 Start point.
+       * @param {ol.Coordinate} point2 End point.
+       * @return {boolean} `true` if the segment and the extent intersect,
+       *     `false` otherwise.
+       */
+      function(point1, point2) {
+        return ol.extent.intersectsSegment(extent, point1, point2);
+      });
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {ol.Extent} extent Extent.
+ * @return {boolean} True if the geometry and the extent intersect.
+ */
+ol.geom.flat.intersectsextent.lineStrings =
+    function(flatCoordinates, offset, ends, stride, extent) {
+  var i, ii;
+  for (i = 0, ii = ends.length; i < ii; ++i) {
+    if (ol.geom.flat.intersectsextent.lineString(
+        flatCoordinates, offset, ends[i], stride, extent)) {
+      return true;
+    }
+    offset = ends[i];
+  }
+  return false;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @param {ol.Extent} extent Extent.
+ * @return {boolean} True if the geometry and the extent intersect.
+ */
+ol.geom.flat.intersectsextent.linearRing =
+    function(flatCoordinates, offset, end, stride, extent) {
+  if (ol.geom.flat.intersectsextent.lineString(
+      flatCoordinates, offset, end, stride, extent)) {
+    return true;
+  }
+  if (ol.geom.flat.contains.linearRingContainsXY(
+      flatCoordinates, offset, end, stride, extent[0], extent[1])) {
+    return true;
+  }
+  if (ol.geom.flat.contains.linearRingContainsXY(
+      flatCoordinates, offset, end, stride, extent[0], extent[3])) {
+    return true;
+  }
+  if (ol.geom.flat.contains.linearRingContainsXY(
+      flatCoordinates, offset, end, stride, extent[2], extent[1])) {
+    return true;
+  }
+  if (ol.geom.flat.contains.linearRingContainsXY(
+      flatCoordinates, offset, end, stride, extent[2], extent[3])) {
+    return true;
+  }
+  return false;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {ol.Extent} extent Extent.
+ * @return {boolean} True if the geometry and the extent intersect.
+ */
+ol.geom.flat.intersectsextent.linearRings =
+    function(flatCoordinates, offset, ends, stride, extent) {
+  goog.asserts.assert(ends.length > 0, 'ends should not be an empty array');
+  if (!ol.geom.flat.intersectsextent.linearRing(
+      flatCoordinates, offset, ends[0], stride, extent)) {
+    return false;
+  }
+  if (ends.length === 1) {
+    return true;
+  }
+  var i, ii;
+  for (i = 1, ii = ends.length; i < ii; ++i) {
+    if (ol.geom.flat.contains.linearRingContainsExtent(
+        flatCoordinates, ends[i - 1], ends[i], stride, extent)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Endss.
+ * @param {number} stride Stride.
+ * @param {ol.Extent} extent Extent.
+ * @return {boolean} True if the geometry and the extent intersect.
+ */
+ol.geom.flat.intersectsextent.linearRingss =
+    function(flatCoordinates, offset, endss, stride, extent) {
+  goog.asserts.assert(endss.length > 0, 'endss should not be an empty array');
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    var ends = endss[i];
+    if (ol.geom.flat.intersectsextent.linearRings(
+        flatCoordinates, offset, ends, stride, extent)) {
+      return true;
+    }
+    offset = ends[ends.length - 1];
+  }
+  return false;
+};
+
+goog.provide('ol.geom.flat.reverse');
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ */
+ol.geom.flat.reverse.coordinates =
+    function(flatCoordinates, offset, end, stride) {
+  while (offset < end - stride) {
+    var i;
+    for (i = 0; i < stride; ++i) {
+      var tmp = flatCoordinates[offset + i];
+      flatCoordinates[offset + i] = flatCoordinates[end - stride + i];
+      flatCoordinates[end - stride + i] = tmp;
+    }
+    offset += stride;
+    end -= stride;
+  }
+};
+
+goog.provide('ol.geom.flat.orient');
+
+goog.require('ol.geom.flat.reverse');
+
+
+/**
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {number} end End.
+ * @param {number} stride Stride.
+ * @return {boolean} Is clockwise.
+ */
+ol.geom.flat.orient.linearRingIsClockwise =
+    function(flatCoordinates, offset, end, stride) {
+  // http://tinyurl.com/clockwise-method
+  // https://github.com/OSGeo/gdal/blob/trunk/gdal/ogr/ogrlinearring.cpp
+  var edge = 0;
+  var x1 = flatCoordinates[end - stride];
+  var y1 = flatCoordinates[end - stride + 1];
+  for (; offset < end; offset += stride) {
+    var x2 = flatCoordinates[offset];
+    var y2 = flatCoordinates[offset + 1];
+    edge += (x2 - x1) * (y2 + y1);
+    x1 = x2;
+    y1 = y2;
+  }
+  return edge > 0;
+};
+
+
+/**
+ * Determines if linear rings are oriented.  By default, left-hand orientation
+ * is tested (first ring must be clockwise, remaining rings counter-clockwise).
+ * To test for right-hand orientation, use the `opt_right` argument.
+ *
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Array of end indexes.
+ * @param {number} stride Stride.
+ * @param {boolean=} opt_right Test for right-hand orientation
+ *     (counter-clockwise exterior ring and clockwise interior rings).
+ * @return {boolean} Rings are correctly oriented.
+ */
+ol.geom.flat.orient.linearRingsAreOriented =
+    function(flatCoordinates, offset, ends, stride, opt_right) {
+  var right = goog.isDef(opt_right) ? opt_right : false;
+  var i, ii;
+  for (i = 0, ii = ends.length; i < ii; ++i) {
+    var end = ends[i];
+    var isClockwise = ol.geom.flat.orient.linearRingIsClockwise(
+        flatCoordinates, offset, end, stride);
+    if (i === 0) {
+      if ((right && isClockwise) || (!right && !isClockwise)) {
+        return false;
+      }
+    } else {
+      if ((right && !isClockwise) || (!right && isClockwise)) {
+        return false;
+      }
+    }
+    offset = end;
+  }
+  return true;
+};
+
+
+/**
+ * Determines if linear rings are oriented.  By default, left-hand orientation
+ * is tested (first ring must be clockwise, remaining rings counter-clockwise).
+ * To test for right-hand orientation, use the `opt_right` argument.
+ *
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Array of array of end indexes.
+ * @param {number} stride Stride.
+ * @param {boolean=} opt_right Test for right-hand orientation
+ *     (counter-clockwise exterior ring and clockwise interior rings).
+ * @return {boolean} Rings are correctly oriented.
+ */
+ol.geom.flat.orient.linearRingssAreOriented =
+    function(flatCoordinates, offset, endss, stride, opt_right) {
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    if (!ol.geom.flat.orient.linearRingsAreOriented(
+        flatCoordinates, offset, endss[i], stride, opt_right)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+
+/**
+ * Orient coordinates in a flat array of linear rings.  By default, rings
+ * are oriented following the left-hand rule (clockwise for exterior and
+ * counter-clockwise for interior rings).  To orient according to the
+ * right-hand rule, use the `opt_right` argument.
+ *
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<number>} ends Ends.
+ * @param {number} stride Stride.
+ * @param {boolean=} opt_right Follow the right-hand rule for orientation.
+ * @return {number} End.
+ */
+ol.geom.flat.orient.orientLinearRings =
+    function(flatCoordinates, offset, ends, stride, opt_right) {
+  var right = goog.isDef(opt_right) ? opt_right : false;
+  var i, ii;
+  for (i = 0, ii = ends.length; i < ii; ++i) {
+    var end = ends[i];
+    var isClockwise = ol.geom.flat.orient.linearRingIsClockwise(
+        flatCoordinates, offset, end, stride);
+    var reverse = i === 0 ?
+        (right && isClockwise) || (!right && !isClockwise) :
+        (right && !isClockwise) || (!right && isClockwise);
+    if (reverse) {
+      ol.geom.flat.reverse.coordinates(flatCoordinates, offset, end, stride);
+    }
+    offset = end;
+  }
+  return offset;
+};
+
+
+/**
+ * Orient coordinates in a flat array of linear rings.  By default, rings
+ * are oriented following the left-hand rule (clockwise for exterior and
+ * counter-clockwise for interior rings).  To orient according to the
+ * right-hand rule, use the `opt_right` argument.
+ *
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {number} offset Offset.
+ * @param {Array.<Array.<number>>} endss Array of array of end indexes.
+ * @param {number} stride Stride.
+ * @param {boolean=} opt_right Follow the right-hand rule for orientation.
+ * @return {number} End.
+ */
+ol.geom.flat.orient.orientLinearRingss =
+    function(flatCoordinates, offset, endss, stride, opt_right) {
+  var i, ii;
+  for (i = 0, ii = endss.length; i < ii; ++i) {
+    offset = ol.geom.flat.orient.orientLinearRings(
+        flatCoordinates, offset, endss[i], stride, opt_right);
+  }
+  return offset;
+};
+
+goog.provide('ol.geom.Polygon');
+
+goog.require('goog.array');
+goog.require('goog.asserts');
+goog.require('goog.math');
+goog.require('ol.extent');
+goog.require('ol.geom.GeometryLayout');
+goog.require('ol.geom.GeometryType');
+goog.require('ol.geom.LinearRing');
+goog.require('ol.geom.Point');
+goog.require('ol.geom.SimpleGeometry');
+goog.require('ol.geom.flat.area');
+goog.require('ol.geom.flat.closest');
+goog.require('ol.geom.flat.contains');
+goog.require('ol.geom.flat.deflate');
+goog.require('ol.geom.flat.inflate');
+goog.require('ol.geom.flat.interiorpoint');
+goog.require('ol.geom.flat.intersectsextent');
+goog.require('ol.geom.flat.orient');
+goog.require('ol.geom.flat.simplify');
+
+
+
+/**
+ * @classdesc
+ * Polygon geometry.
+ *
+ * @constructor
+ * @extends {ol.geom.SimpleGeometry}
+ * @param {Array.<Array.<ol.Coordinate>>} coordinates Coordinates.
+ * @param {ol.geom.GeometryLayout=} opt_layout Layout.
+ * @api stable
+ */
+ol.geom.Polygon = function(coordinates, opt_layout) {
+
+  goog.base(this);
+
+  /**
+   * @type {Array.<number>}
+   * @private
+   */
+  this.ends_ = [];
+
+  /**
+   * @private
+   * @type {number}
+   */
+  this.flatInteriorPointRevision_ = -1;
+
+  /**
+   * @private
+   * @type {ol.Coordinate}
+   */
+  this.flatInteriorPoint_ = null;
+
+  /**
+   * @private
+   * @type {number}
+   */
+  this.maxDelta_ = -1;
+
+  /**
+   * @private
+   * @type {number}
+   */
+  this.maxDeltaRevision_ = -1;
+
+  /**
+   * @private
+   * @type {number}
+   */
+  this.orientedRevision_ = -1;
+
+  /**
+   * @private
+   * @type {Array.<number>}
+   */
+  this.orientedFlatCoordinates_ = null;
+
+  this.setCoordinates(coordinates,
+      /** @type {ol.geom.GeometryLayout|undefined} */ (opt_layout));
+
+};
+goog.inherits(ol.geom.Polygon, ol.geom.SimpleGeometry);
+
+
+/**
+ * Append the passed linear ring to this polygon.
+ * @param {ol.geom.LinearRing} linearRing Linear ring.
+ * @api stable
+ */
+ol.geom.Polygon.prototype.appendLinearRing = function(linearRing) {
+  goog.asserts.assert(linearRing.getLayout() == this.layout,
+      'layout of linearRing should match layout');
+  if (goog.isNull(this.flatCoordinates)) {
+    this.flatCoordinates = linearRing.getFlatCoordinates().slice();
+  } else {
+    goog.array.extend(this.flatCoordinates, linearRing.getFlatCoordinates());
+  }
+  this.ends_.push(this.flatCoordinates.length);
+  this.changed();
+};
+
+
+/**
+ * Make a complete copy of the geometry.
+ * @return {!ol.geom.Polygon} Clone.
+ * @api stable
+ */
+ol.geom.Polygon.prototype.clone = function() {
+  var polygon = new ol.geom.Polygon(null);
+  polygon.setFlatCoordinates(
+      this.layout, this.flatCoordinates.slice(), this.ends_.slice());
+  return polygon;
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.Polygon.prototype.closestPointXY =
+    function(x, y, closestPoint, minSquaredDistance) {
+  if (minSquaredDistance <
+      ol.extent.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+    return minSquaredDistance;
+  }
+  if (this.maxDeltaRevision_ != this.getRevision()) {
+    this.maxDelta_ = Math.sqrt(ol.geom.flat.closest.getsMaxSquaredDelta(
+        this.flatCoordinates, 0, this.ends_, this.stride, 0));
+    this.maxDeltaRevision_ = this.getRevision();
+  }
+  return ol.geom.flat.closest.getsClosestPoint(
+      this.flatCoordinates, 0, this.ends_, this.stride,
+      this.maxDelta_, true, x, y, closestPoint, minSquaredDistance);
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.Polygon.prototype.containsXY = function(x, y) {
+  return ol.geom.flat.contains.linearRingsContainsXY(
+      this.getOrientedFlatCoordinates(), 0, this.ends_, this.stride, x, y);
+};
+
+
+/**
+ * Return the area of the polygon on projected plane.
+ * @return {number} Area (on projected plane).
+ * @api stable
+ */
+ol.geom.Polygon.prototype.getArea = function() {
+  return ol.geom.flat.area.linearRings(
+      this.getOrientedFlatCoordinates(), 0, this.ends_, this.stride);
+};
+
+
+/**
+ * Get the coordinate array for this geometry.  This array has the structure
+ * of a GeoJSON coordinate array for polygons.
+ *
+ * @param {boolean=} opt_right Orient coordinates according to the right-hand
+ *     rule (counter-clockwise for exterior and clockwise for interior rings).
+ *     If `false`, coordinates will be oriented according to the left-hand rule
+ *     (clockwise for exterior and counter-clockwise for interior rings).
+ *     By default, coordinate orientation will depend on how the geometry was
+ *     constructed.
+ * @return {Array.<Array.<ol.Coordinate>>} Coordinates.
+ * @api stable
+ */
+ol.geom.Polygon.prototype.getCoordinates = function(opt_right) {
+  var flatCoordinates;
+  if (goog.isDef(opt_right)) {
+    flatCoordinates = this.getOrientedFlatCoordinates().slice();
+    ol.geom.flat.orient.orientLinearRings(
+        flatCoordinates, 0, this.ends_, this.stride, opt_right);
+  } else {
+    flatCoordinates = this.flatCoordinates;
+  }
+
+  return ol.geom.flat.inflate.coordinatess(
+      flatCoordinates, 0, this.ends_, this.stride);
+};
+
+
+/**
+ * @return {Array.<number>} Ends.
+ */
+ol.geom.Polygon.prototype.getEnds = function() {
+  return this.ends_;
+};
+
+
+/**
+ * @return {Array.<number>} Interior point.
+ */
+ol.geom.Polygon.prototype.getFlatInteriorPoint = function() {
+  if (this.flatInteriorPointRevision_ != this.getRevision()) {
+    var flatCenter = ol.extent.getCenter(this.getExtent());
+    this.flatInteriorPoint_ = ol.geom.flat.interiorpoint.linearRings(
+        this.getOrientedFlatCoordinates(), 0, this.ends_, this.stride,
+        flatCenter, 0);
+    this.flatInteriorPointRevision_ = this.getRevision();
+  }
+  return this.flatInteriorPoint_;
+};
+
+
+/**
+ * Return an interior point of the polygon.
+ * @return {ol.geom.Point} Interior point.
+ * @api stable
+ */
+ol.geom.Polygon.prototype.getInteriorPoint = function() {
+  return new ol.geom.Point(this.getFlatInteriorPoint());
+};
+
+
+/**
+ * Return the number of rings of the polygon,  this includes the exterior
+ * ring and any interior rings.
+ *
+ * @return {number} Number of rings.
+ * @api
+ */
+ol.geom.Polygon.prototype.getLinearRingCount = function() {
+  return this.ends_.length;
+};
+
+
+/**
+ * Return the Nth linear ring of the polygon geometry. Return `null` if the
+ * given index is out of range.
+ * The exterior linear ring is available at index `0` and the interior rings
+ * at index `1` and beyond.
+ *
+ * @param {number} index Index.
+ * @return {ol.geom.LinearRing} Linear ring.
+ * @api stable
+ */
+ol.geom.Polygon.prototype.getLinearRing = function(index) {
+  goog.asserts.assert(0 <= index && index < this.ends_.length,
+      'index should be in between 0 and and length of this.ends_');
+  if (index < 0 || this.ends_.length <= index) {
+    return null;
+  }
+  var linearRing = new ol.geom.LinearRing(null);
+  linearRing.setFlatCoordinates(this.layout, this.flatCoordinates.slice(
+      index === 0 ? 0 : this.ends_[index - 1], this.ends_[index]));
+  return linearRing;
+};
+
+
+/**
+ * Return the linear rings of the polygon.
+ * @return {Array.<ol.geom.LinearRing>} Linear rings.
+ * @api stable
+ */
+ol.geom.Polygon.prototype.getLinearRings = function() {
+  var layout = this.layout;
+  var flatCoordinates = this.flatCoordinates;
+  var ends = this.ends_;
+  var linearRings = [];
+  var offset = 0;
+  var i, ii;
+  for (i = 0, ii = ends.length; i < ii; ++i) {
+    var end = ends[i];
+    var linearRing = new ol.geom.LinearRing(null);
+    linearRing.setFlatCoordinates(layout, flatCoordinates.slice(offset, end));
+    linearRings.push(linearRing);
+    offset = end;
+  }
+  return linearRings;
+};
+
+
+/**
+ * @return {Array.<number>} Oriented flat coordinates.
+ */
+ol.geom.Polygon.prototype.getOrientedFlatCoordinates = function() {
+  if (this.orientedRevision_ != this.getRevision()) {
+    var flatCoordinates = this.flatCoordinates;
+    if (ol.geom.flat.orient.linearRingsAreOriented(
+        flatCoordinates, 0, this.ends_, this.stride)) {
+      this.orientedFlatCoordinates_ = flatCoordinates;
+    } else {
+      this.orientedFlatCoordinates_ = flatCoordinates.slice();
+      this.orientedFlatCoordinates_.length =
+          ol.geom.flat.orient.orientLinearRings(
+              this.orientedFlatCoordinates_, 0, this.ends_, this.stride);
+    }
+    this.orientedRevision_ = this.getRevision();
+  }
+  return this.orientedFlatCoordinates_;
+};
+
+
+/**
+ * @inheritDoc
+ */
+ol.geom.Polygon.prototype.getSimplifiedGeometryInternal =
+    function(squaredTolerance) {
+  var simplifiedFlatCoordinates = [];
+  var simplifiedEnds = [];
+  simplifiedFlatCoordinates.length = ol.geom.flat.simplify.quantizes(
+      this.flatCoordinates, 0, this.ends_, this.stride,
+      Math.sqrt(squaredTolerance),
+      simplifiedFlatCoordinates, 0, simplifiedEnds);
+  var simplifiedPolygon = new ol.geom.Polygon(null);
+  simplifiedPolygon.setFlatCoordinates(
+      ol.geom.GeometryLayout.XY, simplifiedFlatCoordinates, simplifiedEnds);
+  return simplifiedPolygon;
+};
+
+
+/**
+ * @inheritDoc
+ * @api stable
+ */
+ol.geom.Polygon.prototype.getType = function() {
+  return ol.geom.GeometryType.POLYGON;
+};
+
+
+/**
+ * @inheritDoc
+ * @api stable
+ */
+ol.geom.Polygon.prototype.intersectsExtent = function(extent) {
+  return ol.geom.flat.intersectsextent.linearRings(
+      this.getOrientedFlatCoordinates(), 0, this.ends_, this.stride, extent);
+};
+
+
+/**
+ * Set the coordinates of the polygon.
+ * @param {Array.<Array.<ol.Coordinate>>} coordinates Coordinates.
+ * @param {ol.geom.GeometryLayout=} opt_layout Layout.
+ * @api stable
+ */
+ol.geom.Polygon.prototype.setCoordinates = function(coordinates, opt_layout) {
+  if (goog.isNull(coordinates)) {
+    this.setFlatCoordinates(ol.geom.GeometryLayout.XY, null, this.ends_);
+  } else {
+    this.setLayout(opt_layout, coordinates, 2);
+    if (goog.isNull(this.flatCoordinates)) {
+      this.flatCoordinates = [];
+    }
+    var ends = ol.geom.flat.deflate.coordinatess(
+        this.flatCoordinates, 0, coordinates, this.stride, this.ends_);
+    this.flatCoordinates.length = ends.length === 0 ? 0 : ends[ends.length - 1];
+    this.changed();
+  }
+};
+
+
+/**
+ * @param {ol.geom.GeometryLayout} layout Layout.
+ * @param {Array.<number>} flatCoordinates Flat coordinates.
+ * @param {Array.<number>} ends Ends.
+ */
+ol.geom.Polygon.prototype.setFlatCoordinates =
+    function(layout, flatCoordinates, ends) {
+  if (goog.isNull(flatCoordinates)) {
+    goog.asserts.assert(!goog.isNull(ends) && ends.length === 0,
+        'ends cannot be null and should be an empty array');
+  } else if (ends.length === 0) {
+    goog.asserts.assert(flatCoordinates.length === 0,
+        'flatCoordinates should be an empty array');
+  } else {
+    goog.asserts.assert(flatCoordinates.length == ends[ends.length - 1],
+        'the length of flatCoordinates should be the last entry of ends');
+  }
+  this.setFlatCoordinatesInternal(layout, flatCoordinates);
+  this.ends_ = ends;
+  this.changed();
+};
+
+
+/**
+ * Create an approximation of a circle on the surface of a sphere.
+ * @param {ol.Sphere} sphere The sphere.
+ * @param {ol.Coordinate} center Center (`[lon, lat]` in degrees).
+ * @param {number} radius The great-circle distance from the center to
+ *     the polygon vertices.
+ * @param {number=} opt_n Optional number of vertices for the resulting
+ *     polygon. Default is `32`.
+ * @return {ol.geom.Polygon} The "circular" polygon.
+ * @api stable
+ */
+ol.geom.Polygon.circular = function(sphere, center, radius, opt_n) {
+  var n = goog.isDef(opt_n) ? opt_n : 32;
+  /** @type {Array.<number>} */
+  var flatCoordinates = [];
+  var i;
+  for (i = 0; i < n; ++i) {
+    goog.array.extend(
+        flatCoordinates, sphere.offset(center, radius, 2 * Math.PI * i / n));
+  }
+  flatCoordinates.push(flatCoordinates[0], flatCoordinates[1]);
+  var polygon = new ol.geom.Polygon(null);
+  polygon.setFlatCoordinates(
+      ol.geom.GeometryLayout.XY, flatCoordinates, [flatCoordinates.length]);
+  return polygon;
+};
+
+
+/**
+ * Create a polygon from an extent. The layout used is `XY`.
+ * @param {ol.Extent} extent The extent.
+ * @return {ol.geom.Polygon} The polygon.
+ * @api
+ */
+ol.geom.Polygon.fromExtent = function(extent) {
+  var minX = extent[0];
+  var minY = extent[1];
+  var maxX = extent[2];
+  var maxY = extent[3];
+  var flatCoordinates =
+      [minX, minY, minX, maxY, maxX, maxY, maxX, minY, minX, minY];
+  var polygon = new ol.geom.Polygon(null);
+  polygon.setFlatCoordinates(
+      ol.geom.GeometryLayout.XY, flatCoordinates, [flatCoordinates.length]);
+  return polygon;
+};
+
+
+/**
+ * Create a regular polygon from a circle.
+ * @param {ol.geom.Circle} circle Circle geometry.
+ * @param {number=} opt_sides Number of sides of the polygon. Default is 32.
+ * @param {number=} opt_angle Start angle for the first vertex of the polygon in
+ *     radians. Default is 0.
+ * @return {ol.geom.Polygon} Polygon geometry.
+ * @api
+ */
+ol.geom.Polygon.fromCircle = function(circle, opt_sides, opt_angle) {
+  var sides = goog.isDef(opt_sides) ? opt_sides : 32;
+  var stride = circle.getStride();
+  var layout = circle.getLayout();
+  var polygon = new ol.geom.Polygon(null, layout);
+  var flatCoordinates = goog.array.repeat(0, stride * (sides + 1));
+  var ends = [flatCoordinates.length];
+  polygon.setFlatCoordinates(layout, flatCoordinates, ends);
+  ol.geom.Polygon.makeRegular(
+      polygon, circle.getCenter(), circle.getRadius(), opt_angle);
+  return polygon;
+};
+
+
+/**
+ * Modify the coordinates of a polygon to make it a regular polygon.
+ * @param {ol.geom.Polygon} polygon Polygon geometry.
+ * @param {ol.Coordinate} center Center of the regular polygon.
+ * @param {number} radius Radius of the regular polygon.
+ * @param {number=} opt_angle Start angle for the first vertex of the polygon in
+ *     radians. Default is 0.
+ */
+ol.geom.Polygon.makeRegular = function(polygon, center, radius, opt_angle) {
+  var flatCoordinates = polygon.getFlatCoordinates();
+  var layout = polygon.getLayout();
+  var stride = polygon.getStride();
+  var ends = polygon.getEnds();
+  goog.asserts.assert(ends.length === 1, 'only 1 ring is supported');
+  var sides = flatCoordinates.length / stride - 1;
+  var startAngle = goog.isDef(opt_angle) ? opt_angle : 0;
+  var angle, coord, offset;
+  for (var i = 0; i <= sides; ++i) {
+    offset = i * stride;
+    angle = startAngle + (goog.math.modulo(i, sides) * 2 * Math.PI / sides);
+    flatCoordinates[offset] = center[0] + (radius * Math.cos(angle));
+    flatCoordinates[offset + 1] = center[1] + (radius * Math.sin(angle));
+  }
+  polygon.setFlatCoordinates(layout, flatCoordinates, ends);
+};
+
 goog.provide('ol.View');
 goog.provide('ol.ViewHint');
 goog.provide('ol.ViewProperty');
@@ -18918,6 +22199,8 @@ goog.require('ol.RotationConstraintType');
 goog.require('ol.Size');
 goog.require('ol.coordinate');
 goog.require('ol.extent');
+goog.require('ol.geom.Polygon');
+goog.require('ol.geom.SimpleGeometry');
 goog.require('ol.proj');
 goog.require('ol.proj.METERS_PER_UNIT');
 goog.require('ol.proj.Projection');
@@ -19177,15 +22460,17 @@ ol.View.prototype.getHints = function() {
  * @api stable
  */
 ol.View.prototype.calculateExtent = function(size) {
-  goog.asserts.assert(this.isDef(),
-      'the view was not defined (had no center and/or resolution)');
   var center = this.getCenter();
+  goog.asserts.assert(goog.isDefAndNotNull(center),
+      'The view center is not defined');
   var resolution = this.getResolution();
-  var minX = center[0] - resolution * size[0] / 2;
-  var maxX = center[0] + resolution * size[0] / 2;
-  var minY = center[1] - resolution * size[1] / 2;
-  var maxY = center[1] + resolution * size[1] / 2;
-  return [minX, minY, maxX, maxY];
+  goog.asserts.assert(goog.isDef(resolution),
+      'The view resolution is not defined');
+  var rotation = this.getRotation();
+  goog.asserts.assert(goog.isDef(rotation),
+      'The view rotation is not defined');
+
+  return ol.extent.getForViewAndSize(center, resolution, rotation, size);
 };
 
 
@@ -19335,35 +22620,24 @@ ol.View.prototype.getZoom = function() {
 
 
 /**
- * Fit the map view to the passed extent and size. The size is pixel dimensions
- * of the box to fit the extent into. In most cases you will want to use the map
- * size, that is `map.getSize()`.
- * @param {ol.Extent} extent Extent.
+ * Fit the given geometry or extent based on the given map size and border.
+ * The size is pixel dimensions of the box to fit the extent into.
+ * In most cases you will want to use the map size, that is `map.getSize()`.
+ * Takes care of the map angle.
+ * @param {ol.geom.SimpleGeometry|ol.Extent} geometry Geometry.
  * @param {ol.Size} size Box pixel size.
+ * @param {olx.view.FitOptions=} opt_options Options.
  * @api
  */
-ol.View.prototype.fitExtent = function(extent, size) {
-  if (!ol.extent.isEmpty(extent)) {
-    this.setCenter(ol.extent.getCenter(extent));
-    var resolution = this.getResolutionForExtent(extent, size);
-    var constrainedResolution = this.constrainResolution(resolution, 0, 0);
-    if (constrainedResolution < resolution) {
-      constrainedResolution =
-          this.constrainResolution(constrainedResolution, -1, 0);
-    }
-    this.setResolution(constrainedResolution);
+ol.View.prototype.fit = function(geometry, size, opt_options) {
+  if (!(geometry instanceof ol.geom.SimpleGeometry)) {
+    goog.asserts.assert(goog.isArray(geometry),
+        'invalid extent or geometry');
+    goog.asserts.assert(!ol.extent.isEmpty(geometry),
+        'cannot fit empty extent');
+    geometry = ol.geom.Polygon.fromExtent(geometry);
   }
-};
 
-
-/**
- * Fit the given geometry into the view based on the given map size and border.
- * @param {ol.geom.SimpleGeometry} geometry Geometry.
- * @param {ol.Size} size Box pixel size.
- * @param {olx.view.FitGeometryOptions=} opt_options Options.
- * @api
- */
-ol.View.prototype.fitGeometry = function(geometry, size, opt_options) {
   var options = goog.isDef(opt_options) ? opt_options : {};
 
   var padding = goog.isDef(options.padding) ? options.padding : [0, 0, 0, 0];
@@ -34231,7 +37505,7 @@ ol.source.Tile.prototype.getTileCoordForTileUrlFunction =
       opt_projection : this.getProjection();
   var tileGrid = this.getTileGridForProjection(projection);
   goog.asserts.assert(!goog.isNull(tileGrid), 'tile grid needed');
-  if (this.getWrapX()) {
+  if (this.getWrapX() && projection.isGlobal()) {
     tileCoord = ol.tilecoord.wrapX(tileCoord, tileGrid, projection);
   }
   return ol.tilecoord.withinExtentAndZ(tileCoord, tileGrid) ? tileCoord : null;
@@ -35629,339 +38903,6 @@ ol.control.MousePosition.prototype.updateHTML_ = function(pixel) {
   if (!goog.isDef(this.renderedHTML_) || html != this.renderedHTML_) {
     this.element.innerHTML = html;
     this.renderedHTML_ = html;
-  }
-};
-
-// Copyright 2008 The Closure Library Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS-IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-/**
- * @fileoverview Utilities for creating functions. Loosely inspired by the
- * java classes: http://goo.gl/GM0Hmu and http://goo.gl/6k7nI8.
- *
- * @author nicksantos@google.com (Nick Santos)
- */
-
-
-goog.provide('goog.functions');
-
-
-/**
- * Creates a function that always returns the same value.
- * @param {T} retValue The value to return.
- * @return {function():T} The new function.
- * @template T
- */
-goog.functions.constant = function(retValue) {
-  return function() {
-    return retValue;
-  };
-};
-
-
-/**
- * Always returns false.
- * @type {function(...): boolean}
- */
-goog.functions.FALSE = goog.functions.constant(false);
-
-
-/**
- * Always returns true.
- * @type {function(...): boolean}
- */
-goog.functions.TRUE = goog.functions.constant(true);
-
-
-/**
- * Always returns NULL.
- * @type {function(...): null}
- */
-goog.functions.NULL = goog.functions.constant(null);
-
-
-/**
- * A simple function that returns the first argument of whatever is passed
- * into it.
- * @param {T=} opt_returnValue The single value that will be returned.
- * @param {...*} var_args Optional trailing arguments. These are ignored.
- * @return {T} The first argument passed in, or undefined if nothing was passed.
- * @template T
- */
-goog.functions.identity = function(opt_returnValue, var_args) {
-  return opt_returnValue;
-};
-
-
-/**
- * Creates a function that always throws an error with the given message.
- * @param {string} message The error message.
- * @return {!Function} The error-throwing function.
- */
-goog.functions.error = function(message) {
-  return function() {
-    throw Error(message);
-  };
-};
-
-
-/**
- * Creates a function that throws the given object.
- * @param {*} err An object to be thrown.
- * @return {!Function} The error-throwing function.
- */
-goog.functions.fail = function(err) {
-  return function() {
-    throw err;
-  }
-};
-
-
-/**
- * Given a function, create a function that keeps opt_numArgs arguments and
- * silently discards all additional arguments.
- * @param {Function} f The original function.
- * @param {number=} opt_numArgs The number of arguments to keep. Defaults to 0.
- * @return {!Function} A version of f that only keeps the first opt_numArgs
- *     arguments.
- */
-goog.functions.lock = function(f, opt_numArgs) {
-  opt_numArgs = opt_numArgs || 0;
-  return function() {
-    return f.apply(this, Array.prototype.slice.call(arguments, 0, opt_numArgs));
-  };
-};
-
-
-/**
- * Creates a function that returns its nth argument.
- * @param {number} n The position of the return argument.
- * @return {!Function} A new function.
- */
-goog.functions.nth = function(n) {
-  return function() {
-    return arguments[n];
-  };
-};
-
-
-/**
- * Given a function, create a new function that swallows its return value
- * and replaces it with a new one.
- * @param {Function} f A function.
- * @param {T} retValue A new return value.
- * @return {function(...?):T} A new function.
- * @template T
- */
-goog.functions.withReturnValue = function(f, retValue) {
-  return goog.functions.sequence(f, goog.functions.constant(retValue));
-};
-
-
-/**
- * Creates a function that returns whether its arguement equals the given value.
- *
- * Example:
- * var key = goog.object.findKey(obj, goog.functions.equalTo('needle'));
- *
- * @param {*} value The value to compare to.
- * @param {boolean=} opt_useLooseComparison Whether to use a loose (==)
- *     comparison rather than a strict (===) one. Defaults to false.
- * @return {function(*):boolean} The new function.
- */
-goog.functions.equalTo = function(value, opt_useLooseComparison) {
-  return function(other) {
-    return opt_useLooseComparison ? (value == other) : (value === other);
-  };
-};
-
-
-/**
- * Creates the composition of the functions passed in.
- * For example, (goog.functions.compose(f, g))(a) is equivalent to f(g(a)).
- * @param {function(...?):T} fn The final function.
- * @param {...Function} var_args A list of functions.
- * @return {function(...?):T} The composition of all inputs.
- * @template T
- */
-goog.functions.compose = function(fn, var_args) {
-  var functions = arguments;
-  var length = functions.length;
-  return function() {
-    var result;
-    if (length) {
-      result = functions[length - 1].apply(this, arguments);
-    }
-
-    for (var i = length - 2; i >= 0; i--) {
-      result = functions[i].call(this, result);
-    }
-    return result;
-  };
-};
-
-
-/**
- * Creates a function that calls the functions passed in in sequence, and
- * returns the value of the last function. For example,
- * (goog.functions.sequence(f, g))(x) is equivalent to f(x),g(x).
- * @param {...Function} var_args A list of functions.
- * @return {!Function} A function that calls all inputs in sequence.
- */
-goog.functions.sequence = function(var_args) {
-  var functions = arguments;
-  var length = functions.length;
-  return function() {
-    var result;
-    for (var i = 0; i < length; i++) {
-      result = functions[i].apply(this, arguments);
-    }
-    return result;
-  };
-};
-
-
-/**
- * Creates a function that returns true if each of its components evaluates
- * to true. The components are evaluated in order, and the evaluation will be
- * short-circuited as soon as a function returns false.
- * For example, (goog.functions.and(f, g))(x) is equivalent to f(x) && g(x).
- * @param {...Function} var_args A list of functions.
- * @return {function(...?):boolean} A function that ANDs its component
- *      functions.
- */
-goog.functions.and = function(var_args) {
-  var functions = arguments;
-  var length = functions.length;
-  return function() {
-    for (var i = 0; i < length; i++) {
-      if (!functions[i].apply(this, arguments)) {
-        return false;
-      }
-    }
-    return true;
-  };
-};
-
-
-/**
- * Creates a function that returns true if any of its components evaluates
- * to true. The components are evaluated in order, and the evaluation will be
- * short-circuited as soon as a function returns true.
- * For example, (goog.functions.or(f, g))(x) is equivalent to f(x) || g(x).
- * @param {...Function} var_args A list of functions.
- * @return {function(...?):boolean} A function that ORs its component
- *    functions.
- */
-goog.functions.or = function(var_args) {
-  var functions = arguments;
-  var length = functions.length;
-  return function() {
-    for (var i = 0; i < length; i++) {
-      if (functions[i].apply(this, arguments)) {
-        return true;
-      }
-    }
-    return false;
-  };
-};
-
-
-/**
- * Creates a function that returns the Boolean opposite of a provided function.
- * For example, (goog.functions.not(f))(x) is equivalent to !f(x).
- * @param {!Function} f The original function.
- * @return {function(...?):boolean} A function that delegates to f and returns
- * opposite.
- */
-goog.functions.not = function(f) {
-  return function() {
-    return !f.apply(this, arguments);
-  };
-};
-
-
-/**
- * Generic factory function to construct an object given the constructor
- * and the arguments. Intended to be bound to create object factories.
- *
- * Example:
- *
- * var factory = goog.partial(goog.functions.create, Class);
- *
- * @param {function(new:T, ...)} constructor The constructor for the Object.
- * @param {...*} var_args The arguments to be passed to the constructor.
- * @return {T} A new instance of the class given in {@code constructor}.
- * @template T
- */
-goog.functions.create = function(constructor, var_args) {
-  /**
-   * @constructor
-   * @final
-   */
-  var temp = function() {};
-  temp.prototype = constructor.prototype;
-
-  // obj will have constructor's prototype in its chain and
-  // 'obj instanceof constructor' will be true.
-  var obj = new temp();
-
-  // obj is initialized by constructor.
-  // arguments is only array-like so lacks shift(), but can be used with
-  // the Array prototype function.
-  constructor.apply(obj, Array.prototype.slice.call(arguments, 1));
-  return obj;
-};
-
-
-/**
- * @define {boolean} Whether the return value cache should be used.
- *    This should only be used to disable caches when testing.
- */
-goog.define('goog.functions.CACHE_RETURN_VALUE', true);
-
-
-/**
- * Gives a wrapper function that caches the return value of a parameterless
- * function when first called.
- *
- * When called for the first time, the given function is called and its
- * return value is cached (thus this is only appropriate for idempotent
- * functions).  Subsequent calls will return the cached return value. This
- * allows the evaluation of expensive functions to be delayed until first used.
- *
- * To cache the return values of functions with parameters, see goog.memoize.
- *
- * @param {!function():T} fn A function to lazily evaluate.
- * @return {!function():T} A wrapped version the function.
- * @template T
- */
-goog.functions.cacheReturnValue = function(fn) {
-  var called = false;
-  var value;
-
-  return function() {
-    if (!goog.functions.CACHE_RETURN_VALUE) {
-      return fn();
-    }
-
-    if (!called) {
-      value = fn();
-      called = true;
-    }
-
-    return value;
   }
 };
 
@@ -47238,10 +50179,13 @@ ol.layer.Layer.prototype.handleSourcePropertyChange_ = function() {
 
 /**
  * Sets the layer to be rendered on a map. The map will not manage this layer in
- * its layers collection, and the layer will be rendered on top. This is useful
- * for temporary layers. To remove an unmanaged layer from the map, use
- * `#setMap(null)`. To add the layer to a map and have it managed by the map,
- * use {@link ol.Map#addLayer} instead.
+ * its layers collection, layer filters in {@link ol.Map#forEachLayerAtPixel}
+ * will not filter the layer, and it will be rendered on top. This is useful for
+ * temporary layers. To remove an unmanaged layer from the map, use
+ * `#setMap(null)`.
+ *
+ * To add the layer to a map and have it managed by the map, use
+ * {@link ol.Map#addLayer} instead.
  * @param {ol.Map} map Map.
  * @api
  */
@@ -48917,8 +51861,9 @@ ol.renderer.Map.prototype.forEachFeatureAtCoordinate =
   for (i = numLayers - 1; i >= 0; --i) {
     var layerState = layerStates[i];
     var layer = layerState.layer;
-    if (ol.layer.Layer.visibleAtResolution(layerState, viewResolution) &&
-        layerFilter.call(thisArg2, layer)) {
+    if (!layerState.managed ||
+        (ol.layer.Layer.visibleAtResolution(layerState, viewResolution) &&
+        layerFilter.call(thisArg2, layer))) {
       var layerRenderer = this.getLayerRenderer(layer);
       result = layerRenderer.forEachFeatureAtCoordinate(
           layer.getSource().getWrapX() ? translatedCoordinate : coordinate,
@@ -50722,2954 +53667,6 @@ ol.interaction.DragRotate.handleDownEvent_ = function(mapBrowserEvent) {
  * @inheritDoc
  */
 ol.interaction.DragRotate.prototype.shouldStopEvent = goog.functions.FALSE;
-
-goog.provide('ol.geom.Geometry');
-goog.provide('ol.geom.GeometryLayout');
-goog.provide('ol.geom.GeometryType');
-
-goog.require('goog.functions');
-goog.require('ol.Object');
-goog.require('ol.extent');
-goog.require('ol.proj');
-
-
-/**
- * The geometry type. One of `'Point'`, `'LineString'`, `'LinearRing'`,
- * `'Polygon'`, `'MultiPoint'`, `'MultiLineString'`, `'MultiPolygon'`,
- * `'GeometryCollection'`, `'Circle'`.
- * @enum {string}
- * @api stable
- */
-ol.geom.GeometryType = {
-  POINT: 'Point',
-  LINE_STRING: 'LineString',
-  LINEAR_RING: 'LinearRing',
-  POLYGON: 'Polygon',
-  MULTI_POINT: 'MultiPoint',
-  MULTI_LINE_STRING: 'MultiLineString',
-  MULTI_POLYGON: 'MultiPolygon',
-  GEOMETRY_COLLECTION: 'GeometryCollection',
-  CIRCLE: 'Circle'
-};
-
-
-/**
- * The coordinate layout for geometries, indicating whether a 3rd or 4th z ('Z')
- * or measure ('M') coordinate is available. Supported values are `'XY'`,
- * `'XYZ'`, `'XYM'`, `'XYZM'`.
- * @enum {string}
- * @api stable
- */
-ol.geom.GeometryLayout = {
-  XY: 'XY',
-  XYZ: 'XYZ',
-  XYM: 'XYM',
-  XYZM: 'XYZM'
-};
-
-
-
-/**
- * @classdesc
- * Abstract base class; normally only used for creating subclasses and not
- * instantiated in apps.
- * Base class for vector geometries.
- *
- * @constructor
- * @extends {ol.Object}
- * @fires change Triggered when the geometry changes.
- * @api stable
- */
-ol.geom.Geometry = function() {
-
-  goog.base(this);
-
-  /**
-   * @private
-   * @type {ol.Extent}
-   */
-  this.extent_ = ol.extent.createEmpty();
-
-  /**
-   * @private
-   * @type {number}
-   */
-  this.extentRevision_ = -1;
-
-  /**
-   * @protected
-   * @type {Object.<string, ol.geom.Geometry>}
-   */
-  this.simplifiedGeometryCache = {};
-
-  /**
-   * @protected
-   * @type {number}
-   */
-  this.simplifiedGeometryMaxMinSquaredTolerance = 0;
-
-  /**
-   * @protected
-   * @type {number}
-   */
-  this.simplifiedGeometryRevision = 0;
-
-};
-goog.inherits(ol.geom.Geometry, ol.Object);
-
-
-/**
- * Make a complete copy of the geometry.
- * @function
- * @return {!ol.geom.Geometry} Clone.
- */
-ol.geom.Geometry.prototype.clone = goog.abstractMethod;
-
-
-/**
- * @param {number} x X.
- * @param {number} y Y.
- * @param {ol.Coordinate} closestPoint Closest point.
- * @param {number} minSquaredDistance Minimum squared distance.
- * @return {number} Minimum squared distance.
- */
-ol.geom.Geometry.prototype.closestPointXY = goog.abstractMethod;
-
-
-/**
- * Return the closest point of the geometry to the passed point as
- * {@link ol.Coordinate coordinate}.
- * @param {ol.Coordinate} point Point.
- * @param {ol.Coordinate=} opt_closestPoint Closest point.
- * @return {ol.Coordinate} Closest point.
- * @api stable
- */
-ol.geom.Geometry.prototype.getClosestPoint = function(point, opt_closestPoint) {
-  var closestPoint = goog.isDef(opt_closestPoint) ?
-      opt_closestPoint : [NaN, NaN];
-  this.closestPointXY(point[0], point[1], closestPoint, Infinity);
-  return closestPoint;
-};
-
-
-/**
- * @param {ol.Coordinate} coordinate Coordinate.
- * @return {boolean} Contains coordinate.
- */
-ol.geom.Geometry.prototype.containsCoordinate = function(coordinate) {
-  return this.containsXY(coordinate[0], coordinate[1]);
-};
-
-
-/**
- * @param {ol.Extent} extent Extent.
- * @protected
- * @return {ol.Extent} extent Extent.
- */
-ol.geom.Geometry.prototype.computeExtent = goog.abstractMethod;
-
-
-/**
- * @param {number} x X.
- * @param {number} y Y.
- * @return {boolean} Contains (x, y).
- */
-ol.geom.Geometry.prototype.containsXY = goog.functions.FALSE;
-
-
-/**
- * Get the extent of the geometry.
- * @param {ol.Extent=} opt_extent Extent.
- * @return {ol.Extent} extent Extent.
- * @api stable
- */
-ol.geom.Geometry.prototype.getExtent = function(opt_extent) {
-  if (this.extentRevision_ != this.getRevision()) {
-    this.extent_ = this.computeExtent(this.extent_);
-    this.extentRevision_ = this.getRevision();
-  }
-  return ol.extent.returnOrUpdate(this.extent_, opt_extent);
-};
-
-
-/**
- * Create a simplified version of this geometry using the Douglas Peucker
- * algorithm.
- * @see http://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm
- * @function
- * @param {number} squaredTolerance Squared tolerance.
- * @return {ol.geom.Geometry} Simplified geometry.
- */
-ol.geom.Geometry.prototype.getSimplifiedGeometry = goog.abstractMethod;
-
-
-/**
- * Get the type of this geometry.
- * @function
- * @return {ol.geom.GeometryType} Geometry type.
- */
-ol.geom.Geometry.prototype.getType = goog.abstractMethod;
-
-
-/**
- * Apply a transform function to each coordinate of the geometry.
- * The geometry is modified in place.
- * If you do not want the geometry modified in place, first clone() it and
- * then use this function on the clone.
- * @function
- * @param {ol.TransformFunction} transformFn Transform.
- */
-ol.geom.Geometry.prototype.applyTransform = goog.abstractMethod;
-
-
-/**
- * Test if the geometry and the passed extent intersect.
- * @param {ol.Extent} extent Extent.
- * @return {boolean} `true` if the geometry and the extent intersect.
- * @function
- */
-ol.geom.Geometry.prototype.intersectsExtent = goog.abstractMethod;
-
-
-/**
- * Translate the geometry.  This modifies the geometry coordinates in place.  If
- * instead you want a new geometry, first `clone()` this geometry.
- * @param {number} deltaX Delta X.
- * @param {number} deltaY Delta Y.
- * @function
- */
-ol.geom.Geometry.prototype.translate = goog.abstractMethod;
-
-
-/**
- * Transform each coordinate of the geometry from one coordinate reference
- * system to another. The geometry is modified in place.
- * For example, a line will be transformed to a line and a circle to a circle.
- * If you do not want the geometry modified in place, first clone() it and
- * then use this function on the clone.
- *
- * @param {ol.proj.ProjectionLike} source The current projection.  Can be a
- *     string identifier or a {@link ol.proj.Projection} object.
- * @param {ol.proj.ProjectionLike} destination The desired projection.  Can be a
- *     string identifier or a {@link ol.proj.Projection} object.
- * @return {ol.geom.Geometry} This geometry.  Note that original geometry is
- *     modified in place.
- * @api stable
- */
-ol.geom.Geometry.prototype.transform = function(source, destination) {
-  this.applyTransform(ol.proj.getTransform(source, destination));
-  return this;
-};
-
-goog.provide('ol.geom.flat.transform');
-
-goog.require('goog.vec.Mat4');
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {goog.vec.Mat4.Number} transform Transform.
- * @param {Array.<number>=} opt_dest Destination.
- * @return {Array.<number>} Transformed coordinates.
- */
-ol.geom.flat.transform.transform2D =
-    function(flatCoordinates, offset, end, stride, transform, opt_dest) {
-  var m00 = goog.vec.Mat4.getElement(transform, 0, 0);
-  var m10 = goog.vec.Mat4.getElement(transform, 1, 0);
-  var m01 = goog.vec.Mat4.getElement(transform, 0, 1);
-  var m11 = goog.vec.Mat4.getElement(transform, 1, 1);
-  var m03 = goog.vec.Mat4.getElement(transform, 0, 3);
-  var m13 = goog.vec.Mat4.getElement(transform, 1, 3);
-  var dest = goog.isDef(opt_dest) ? opt_dest : [];
-  var i = 0;
-  var j;
-  for (j = offset; j < end; j += stride) {
-    var x = flatCoordinates[j];
-    var y = flatCoordinates[j + 1];
-    dest[i++] = m00 * x + m01 * y + m03;
-    dest[i++] = m10 * x + m11 * y + m13;
-  }
-  if (goog.isDef(opt_dest) && dest.length != i) {
-    dest.length = i;
-  }
-  return dest;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {number} deltaX Delta X.
- * @param {number} deltaY Delta Y.
- * @param {Array.<number>=} opt_dest Destination.
- * @return {Array.<number>} Transformed coordinates.
- */
-ol.geom.flat.transform.translate =
-    function(flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
-  var dest = goog.isDef(opt_dest) ? opt_dest : [];
-  var i = 0;
-  var j, k;
-  for (j = offset; j < end; j += stride) {
-    dest[i++] = flatCoordinates[j] + deltaX;
-    dest[i++] = flatCoordinates[j + 1] + deltaY;
-    for (k = j + 2; k < j + stride; ++k) {
-      dest[i++] = flatCoordinates[k];
-    }
-  }
-  if (goog.isDef(opt_dest) && dest.length != i) {
-    dest.length = i;
-  }
-  return dest;
-};
-
-goog.provide('ol.geom.SimpleGeometry');
-
-goog.require('goog.asserts');
-goog.require('goog.functions');
-goog.require('goog.object');
-goog.require('ol.extent');
-goog.require('ol.geom.Geometry');
-goog.require('ol.geom.GeometryLayout');
-goog.require('ol.geom.flat.transform');
-
-
-
-/**
- * @classdesc
- * Abstract base class; only used for creating subclasses; do not instantiate
- * in apps, as cannot be rendered.
- *
- * @constructor
- * @extends {ol.geom.Geometry}
- * @api stable
- */
-ol.geom.SimpleGeometry = function() {
-
-  goog.base(this);
-
-  /**
-   * @protected
-   * @type {ol.geom.GeometryLayout}
-   */
-  this.layout = ol.geom.GeometryLayout.XY;
-
-  /**
-   * @protected
-   * @type {number}
-   */
-  this.stride = 2;
-
-  /**
-   * @protected
-   * @type {Array.<number>}
-   */
-  this.flatCoordinates = null;
-
-};
-goog.inherits(ol.geom.SimpleGeometry, ol.geom.Geometry);
-
-
-/**
- * @param {number} stride Stride.
- * @private
- * @return {ol.geom.GeometryLayout} layout Layout.
- */
-ol.geom.SimpleGeometry.getLayoutForStride_ = function(stride) {
-  if (stride == 2) {
-    return ol.geom.GeometryLayout.XY;
-  } else if (stride == 3) {
-    return ol.geom.GeometryLayout.XYZ;
-  } else if (stride == 4) {
-    return ol.geom.GeometryLayout.XYZM;
-  } else {
-    goog.asserts.fail('unsupported stride: ' + stride);
-  }
-};
-
-
-/**
- * @param {ol.geom.GeometryLayout} layout Layout.
- * @return {number} Stride.
- */
-ol.geom.SimpleGeometry.getStrideForLayout = function(layout) {
-  if (layout == ol.geom.GeometryLayout.XY) {
-    return 2;
-  } else if (layout == ol.geom.GeometryLayout.XYZ) {
-    return 3;
-  } else if (layout == ol.geom.GeometryLayout.XYM) {
-    return 3;
-  } else if (layout == ol.geom.GeometryLayout.XYZM) {
-    return 4;
-  } else {
-    goog.asserts.fail('unsupported layout: ' + layout);
-  }
-};
-
-
-/**
- * @inheritDoc
- */
-ol.geom.SimpleGeometry.prototype.containsXY = goog.functions.FALSE;
-
-
-/**
- * @inheritDoc
- */
-ol.geom.SimpleGeometry.prototype.computeExtent = function(extent) {
-  return ol.extent.createOrUpdateFromFlatCoordinates(
-      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride,
-      extent);
-};
-
-
-/**
- * @return {Array} Coordinates.
- */
-ol.geom.SimpleGeometry.prototype.getCoordinates = goog.abstractMethod;
-
-
-/**
- * Return the first coordinate of the geometry.
- * @return {ol.Coordinate} First coordinate.
- * @api stable
- */
-ol.geom.SimpleGeometry.prototype.getFirstCoordinate = function() {
-  return this.flatCoordinates.slice(0, this.stride);
-};
-
-
-/**
- * @return {Array.<number>} Flat coordinates.
- */
-ol.geom.SimpleGeometry.prototype.getFlatCoordinates = function() {
-  return this.flatCoordinates;
-};
-
-
-/**
- * Return the last coordinate of the geometry.
- * @return {ol.Coordinate} Last point.
- * @api stable
- */
-ol.geom.SimpleGeometry.prototype.getLastCoordinate = function() {
-  return this.flatCoordinates.slice(this.flatCoordinates.length - this.stride);
-};
-
-
-/**
- * Return the {@link ol.geom.GeometryLayout layout} of the geometry.
- * @return {ol.geom.GeometryLayout} Layout.
- * @api stable
- */
-ol.geom.SimpleGeometry.prototype.getLayout = function() {
-  return this.layout;
-};
-
-
-/**
- * @inheritDoc
- */
-ol.geom.SimpleGeometry.prototype.getSimplifiedGeometry =
-    function(squaredTolerance) {
-  if (this.simplifiedGeometryRevision != this.getRevision()) {
-    goog.object.clear(this.simplifiedGeometryCache);
-    this.simplifiedGeometryMaxMinSquaredTolerance = 0;
-    this.simplifiedGeometryRevision = this.getRevision();
-  }
-  // If squaredTolerance is negative or if we know that simplification will not
-  // have any effect then just return this.
-  if (squaredTolerance < 0 ||
-      (this.simplifiedGeometryMaxMinSquaredTolerance !== 0 &&
-       squaredTolerance <= this.simplifiedGeometryMaxMinSquaredTolerance)) {
-    return this;
-  }
-  var key = squaredTolerance.toString();
-  if (this.simplifiedGeometryCache.hasOwnProperty(key)) {
-    return this.simplifiedGeometryCache[key];
-  } else {
-    var simplifiedGeometry =
-        this.getSimplifiedGeometryInternal(squaredTolerance);
-    var simplifiedFlatCoordinates = simplifiedGeometry.getFlatCoordinates();
-    if (simplifiedFlatCoordinates.length < this.flatCoordinates.length) {
-      this.simplifiedGeometryCache[key] = simplifiedGeometry;
-      return simplifiedGeometry;
-    } else {
-      // Simplification did not actually remove any coordinates.  We now know
-      // that any calls to getSimplifiedGeometry with a squaredTolerance less
-      // than or equal to the current squaredTolerance will also not have any
-      // effect.  This allows us to short circuit simplification (saving CPU
-      // cycles) and prevents the cache of simplified geometries from filling
-      // up with useless identical copies of this geometry (saving memory).
-      this.simplifiedGeometryMaxMinSquaredTolerance = squaredTolerance;
-      return this;
-    }
-  }
-};
-
-
-/**
- * @param {number} squaredTolerance Squared tolerance.
- * @return {ol.geom.SimpleGeometry} Simplified geometry.
- * @protected
- */
-ol.geom.SimpleGeometry.prototype.getSimplifiedGeometryInternal =
-    function(squaredTolerance) {
-  return this;
-};
-
-
-/**
- * @return {number} Stride.
- */
-ol.geom.SimpleGeometry.prototype.getStride = function() {
-  return this.stride;
-};
-
-
-/**
- * @param {ol.geom.GeometryLayout} layout Layout.
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @protected
- */
-ol.geom.SimpleGeometry.prototype.setFlatCoordinatesInternal =
-    function(layout, flatCoordinates) {
-  this.stride = ol.geom.SimpleGeometry.getStrideForLayout(layout);
-  this.layout = layout;
-  this.flatCoordinates = flatCoordinates;
-};
-
-
-/**
- * @param {Array} coordinates Coordinates.
- * @param {ol.geom.GeometryLayout=} opt_layout Layout.
- */
-ol.geom.SimpleGeometry.prototype.setCoordinates = goog.abstractMethod;
-
-
-/**
- * @param {ol.geom.GeometryLayout|undefined} layout Layout.
- * @param {Array} coordinates Coordinates.
- * @param {number} nesting Nesting.
- * @protected
- */
-ol.geom.SimpleGeometry.prototype.setLayout =
-    function(layout, coordinates, nesting) {
-  /** @type {number} */
-  var stride;
-  if (goog.isDef(layout)) {
-    stride = ol.geom.SimpleGeometry.getStrideForLayout(layout);
-  } else {
-    var i;
-    for (i = 0; i < nesting; ++i) {
-      if (coordinates.length === 0) {
-        this.layout = ol.geom.GeometryLayout.XY;
-        this.stride = 2;
-        return;
-      } else {
-        coordinates = /** @type {Array} */ (coordinates[0]);
-      }
-    }
-    stride = (/** @type {Array} */ (coordinates)).length;
-    layout = ol.geom.SimpleGeometry.getLayoutForStride_(stride);
-  }
-  this.layout = layout;
-  this.stride = stride;
-};
-
-
-/**
- * @inheritDoc
- * @api stable
- */
-ol.geom.SimpleGeometry.prototype.applyTransform = function(transformFn) {
-  if (!goog.isNull(this.flatCoordinates)) {
-    transformFn(this.flatCoordinates, this.flatCoordinates, this.stride);
-    this.changed();
-  }
-};
-
-
-/**
- * @inheritDoc
- * @api stable
- */
-ol.geom.SimpleGeometry.prototype.translate = function(deltaX, deltaY) {
-  var flatCoordinates = this.getFlatCoordinates();
-  if (!goog.isNull(flatCoordinates)) {
-    var stride = this.getStride();
-    ol.geom.flat.transform.translate(
-        flatCoordinates, 0, flatCoordinates.length, stride,
-        deltaX, deltaY, flatCoordinates);
-    this.changed();
-  }
-};
-
-
-/**
- * @param {ol.geom.SimpleGeometry} simpleGeometry Simple geometry.
- * @param {goog.vec.Mat4.Number} transform Transform.
- * @param {Array.<number>=} opt_dest Destination.
- * @return {Array.<number>} Transformed flat coordinates.
- */
-ol.geom.transformSimpleGeometry2D =
-    function(simpleGeometry, transform, opt_dest) {
-  var flatCoordinates = simpleGeometry.getFlatCoordinates();
-  if (goog.isNull(flatCoordinates)) {
-    return null;
-  } else {
-    var stride = simpleGeometry.getStride();
-    return ol.geom.flat.transform.transform2D(
-        flatCoordinates, 0, flatCoordinates.length, stride,
-        transform, opt_dest);
-  }
-};
-
-goog.provide('ol.geom.flat.area');
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @return {number} Area.
- */
-ol.geom.flat.area.linearRing = function(flatCoordinates, offset, end, stride) {
-  var twiceArea = 0;
-  var x1 = flatCoordinates[end - stride];
-  var y1 = flatCoordinates[end - stride + 1];
-  for (; offset < end; offset += stride) {
-    var x2 = flatCoordinates[offset];
-    var y2 = flatCoordinates[offset + 1];
-    twiceArea += y1 * x2 - x1 * y2;
-    x1 = x2;
-    y1 = y2;
-  }
-  return twiceArea / 2;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @return {number} Area.
- */
-ol.geom.flat.area.linearRings =
-    function(flatCoordinates, offset, ends, stride) {
-  var area = 0;
-  var i, ii;
-  for (i = 0, ii = ends.length; i < ii; ++i) {
-    var end = ends[i];
-    area += ol.geom.flat.area.linearRing(flatCoordinates, offset, end, stride);
-    offset = end;
-  }
-  return area;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Endss.
- * @param {number} stride Stride.
- * @return {number} Area.
- */
-ol.geom.flat.area.linearRingss =
-    function(flatCoordinates, offset, endss, stride) {
-  var area = 0;
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    var ends = endss[i];
-    area +=
-        ol.geom.flat.area.linearRings(flatCoordinates, offset, ends, stride);
-    offset = ends[ends.length - 1];
-  }
-  return area;
-};
-
-goog.provide('ol.math');
-
-goog.require('goog.asserts');
-
-
-/**
- * @param {number} x X.
- * @return {number} Hyperbolic cosine of x.
- */
-ol.math.cosh = function(x) {
-  return (Math.exp(x) + Math.exp(-x)) / 2;
-};
-
-
-/**
- * @param {number} x X.
- * @return {number} Hyperbolic cotangent of x.
- */
-ol.math.coth = function(x) {
-  var expMinusTwoX = Math.exp(-2 * x);
-  return (1 + expMinusTwoX) / (1 - expMinusTwoX);
-};
-
-
-/**
- * @param {number} x X.
- * @return {number} Hyperbolic cosecant of x.
- */
-ol.math.csch = function(x) {
-  return 2 / (Math.exp(x) - Math.exp(-x));
-};
-
-
-/**
- * @param {number} x X.
- * @return {number} The smallest power of two greater than or equal to x.
- */
-ol.math.roundUpToPowerOfTwo = function(x) {
-  goog.asserts.assert(0 < x, 'x should be larger than 0');
-  return Math.pow(2, Math.ceil(Math.log(x) / Math.LN2));
-};
-
-
-/**
- * @param {number} x X.
- * @return {number} Hyperbolic secant of x.
- */
-ol.math.sech = function(x) {
-  return 2 / (Math.exp(x) + Math.exp(-x));
-};
-
-
-/**
- * @param {number} x X.
- * @return {number} Hyperbolic sine of x.
- */
-ol.math.sinh = function(x) {
-  return (Math.exp(x) - Math.exp(-x)) / 2;
-};
-
-
-/**
- * Returns the square of the closest distance between the point (x, y) and the
- * line segment (x1, y1) to (x2, y2).
- * @param {number} x X.
- * @param {number} y Y.
- * @param {number} x1 X1.
- * @param {number} y1 Y1.
- * @param {number} x2 X2.
- * @param {number} y2 Y2.
- * @return {number} Squared distance.
- */
-ol.math.squaredSegmentDistance = function(x, y, x1, y1, x2, y2) {
-  var dx = x2 - x1;
-  var dy = y2 - y1;
-  if (dx !== 0 || dy !== 0) {
-    var t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
-    if (t > 1) {
-      x1 = x2;
-      y1 = y2;
-    } else if (t > 0) {
-      x1 += dx * t;
-      y1 += dy * t;
-    }
-  }
-  return ol.math.squaredDistance(x, y, x1, y1);
-};
-
-
-/**
- * Returns the square of the distance between the points (x1, y1) and (x2, y2).
- * @param {number} x1 X1.
- * @param {number} y1 Y1.
- * @param {number} x2 X2.
- * @param {number} y2 Y2.
- * @return {number} Squared distance.
- */
-ol.math.squaredDistance = function(x1, y1, x2, y2) {
-  var dx = x2 - x1;
-  var dy = y2 - y1;
-  return dx * dx + dy * dy;
-};
-
-
-/**
- * @param {number} x X.
- * @return {number} Hyperbolic tangent of x.
- */
-ol.math.tanh = function(x) {
-  var expMinusTwoX = Math.exp(-2 * x);
-  return (1 - expMinusTwoX) / (1 + expMinusTwoX);
-};
-
-goog.provide('ol.geom.flat.closest');
-
-goog.require('goog.asserts');
-goog.require('goog.math');
-goog.require('ol.math');
-
-
-/**
- * Returns the point on the 2D line segment flatCoordinates[offset1] to
- * flatCoordinates[offset2] that is closest to the point (x, y).  Extra
- * dimensions are linearly interpolated.
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset1 Offset 1.
- * @param {number} offset2 Offset 2.
- * @param {number} stride Stride.
- * @param {number} x X.
- * @param {number} y Y.
- * @param {Array.<number>} closestPoint Closest point.
- */
-ol.geom.flat.closest.point =
-    function(flatCoordinates, offset1, offset2, stride, x, y, closestPoint) {
-  var x1 = flatCoordinates[offset1];
-  var y1 = flatCoordinates[offset1 + 1];
-  var dx = flatCoordinates[offset2] - x1;
-  var dy = flatCoordinates[offset2 + 1] - y1;
-  var i, offset;
-  if (dx === 0 && dy === 0) {
-    offset = offset1;
-  } else {
-    var t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
-    if (t > 1) {
-      offset = offset2;
-    } else if (t > 0) {
-      for (i = 0; i < stride; ++i) {
-        closestPoint[i] = goog.math.lerp(flatCoordinates[offset1 + i],
-            flatCoordinates[offset2 + i], t);
-      }
-      closestPoint.length = stride;
-      return;
-    } else {
-      offset = offset1;
-    }
-  }
-  for (i = 0; i < stride; ++i) {
-    closestPoint[i] = flatCoordinates[offset + i];
-  }
-  closestPoint.length = stride;
-};
-
-
-/**
- * Return the squared of the largest distance between any pair of consecutive
- * coordinates.
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {number} maxSquaredDelta Max squared delta.
- * @return {number} Max squared delta.
- */
-ol.geom.flat.closest.getMaxSquaredDelta =
-    function(flatCoordinates, offset, end, stride, maxSquaredDelta) {
-  var x1 = flatCoordinates[offset];
-  var y1 = flatCoordinates[offset + 1];
-  for (offset += stride; offset < end; offset += stride) {
-    var x2 = flatCoordinates[offset];
-    var y2 = flatCoordinates[offset + 1];
-    var squaredDelta = ol.math.squaredDistance(x1, y1, x2, y2);
-    if (squaredDelta > maxSquaredDelta) {
-      maxSquaredDelta = squaredDelta;
-    }
-    x1 = x2;
-    y1 = y2;
-  }
-  return maxSquaredDelta;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {number} maxSquaredDelta Max squared delta.
- * @return {number} Max squared delta.
- */
-ol.geom.flat.closest.getsMaxSquaredDelta =
-    function(flatCoordinates, offset, ends, stride, maxSquaredDelta) {
-  var i, ii;
-  for (i = 0, ii = ends.length; i < ii; ++i) {
-    var end = ends[i];
-    maxSquaredDelta = ol.geom.flat.closest.getMaxSquaredDelta(
-        flatCoordinates, offset, end, stride, maxSquaredDelta);
-    offset = end;
-  }
-  return maxSquaredDelta;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Endss.
- * @param {number} stride Stride.
- * @param {number} maxSquaredDelta Max squared delta.
- * @return {number} Max squared delta.
- */
-ol.geom.flat.closest.getssMaxSquaredDelta =
-    function(flatCoordinates, offset, endss, stride, maxSquaredDelta) {
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    var ends = endss[i];
-    maxSquaredDelta = ol.geom.flat.closest.getsMaxSquaredDelta(
-        flatCoordinates, offset, ends, stride, maxSquaredDelta);
-    offset = ends[ends.length - 1];
-  }
-  return maxSquaredDelta;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {number} maxDelta Max delta.
- * @param {boolean} isRing Is ring.
- * @param {number} x X.
- * @param {number} y Y.
- * @param {Array.<number>} closestPoint Closest point.
- * @param {number} minSquaredDistance Minimum squared distance.
- * @param {Array.<number>=} opt_tmpPoint Temporary point object.
- * @return {number} Minimum squared distance.
- */
-ol.geom.flat.closest.getClosestPoint = function(flatCoordinates, offset, end,
-    stride, maxDelta, isRing, x, y, closestPoint, minSquaredDistance,
-    opt_tmpPoint) {
-  if (offset == end) {
-    return minSquaredDistance;
-  }
-  var i, squaredDistance;
-  if (maxDelta === 0) {
-    // All points are identical, so just test the first point.
-    squaredDistance = ol.math.squaredDistance(
-        x, y, flatCoordinates[offset], flatCoordinates[offset + 1]);
-    if (squaredDistance < minSquaredDistance) {
-      for (i = 0; i < stride; ++i) {
-        closestPoint[i] = flatCoordinates[offset + i];
-      }
-      closestPoint.length = stride;
-      return squaredDistance;
-    } else {
-      return minSquaredDistance;
-    }
-  }
-  goog.asserts.assert(maxDelta > 0, 'maxDelta should be larger than 0');
-  var tmpPoint = goog.isDef(opt_tmpPoint) ? opt_tmpPoint : [NaN, NaN];
-  var index = offset + stride;
-  while (index < end) {
-    ol.geom.flat.closest.point(
-        flatCoordinates, index - stride, index, stride, x, y, tmpPoint);
-    squaredDistance = ol.math.squaredDistance(x, y, tmpPoint[0], tmpPoint[1]);
-    if (squaredDistance < minSquaredDistance) {
-      minSquaredDistance = squaredDistance;
-      for (i = 0; i < stride; ++i) {
-        closestPoint[i] = tmpPoint[i];
-      }
-      closestPoint.length = stride;
-      index += stride;
-    } else {
-      // Skip ahead multiple points, because we know that all the skipped
-      // points cannot be any closer than the closest point we have found so
-      // far.  We know this because we know how close the current point is, how
-      // close the closest point we have found so far is, and the maximum
-      // distance between consecutive points.  For example, if we're currently
-      // at distance 10, the best we've found so far is 3, and that the maximum
-      // distance between consecutive points is 2, then we'll need to skip at
-      // least (10 - 3) / 2 == 3 (rounded down) points to have any chance of
-      // finding a closer point.  We use Math.max(..., 1) to ensure that we
-      // always advance at least one point, to avoid an infinite loop.
-      index += stride * Math.max(
-          ((Math.sqrt(squaredDistance) -
-            Math.sqrt(minSquaredDistance)) / maxDelta) | 0, 1);
-    }
-  }
-  if (isRing) {
-    // Check the closing segment.
-    ol.geom.flat.closest.point(
-        flatCoordinates, end - stride, offset, stride, x, y, tmpPoint);
-    squaredDistance = ol.math.squaredDistance(x, y, tmpPoint[0], tmpPoint[1]);
-    if (squaredDistance < minSquaredDistance) {
-      minSquaredDistance = squaredDistance;
-      for (i = 0; i < stride; ++i) {
-        closestPoint[i] = tmpPoint[i];
-      }
-      closestPoint.length = stride;
-    }
-  }
-  return minSquaredDistance;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {number} maxDelta Max delta.
- * @param {boolean} isRing Is ring.
- * @param {number} x X.
- * @param {number} y Y.
- * @param {Array.<number>} closestPoint Closest point.
- * @param {number} minSquaredDistance Minimum squared distance.
- * @param {Array.<number>=} opt_tmpPoint Temporary point object.
- * @return {number} Minimum squared distance.
- */
-ol.geom.flat.closest.getsClosestPoint = function(flatCoordinates, offset, ends,
-    stride, maxDelta, isRing, x, y, closestPoint, minSquaredDistance,
-    opt_tmpPoint) {
-  var tmpPoint = goog.isDef(opt_tmpPoint) ? opt_tmpPoint : [NaN, NaN];
-  var i, ii;
-  for (i = 0, ii = ends.length; i < ii; ++i) {
-    var end = ends[i];
-    minSquaredDistance = ol.geom.flat.closest.getClosestPoint(
-        flatCoordinates, offset, end, stride,
-        maxDelta, isRing, x, y, closestPoint, minSquaredDistance, tmpPoint);
-    offset = end;
-  }
-  return minSquaredDistance;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Endss.
- * @param {number} stride Stride.
- * @param {number} maxDelta Max delta.
- * @param {boolean} isRing Is ring.
- * @param {number} x X.
- * @param {number} y Y.
- * @param {Array.<number>} closestPoint Closest point.
- * @param {number} minSquaredDistance Minimum squared distance.
- * @param {Array.<number>=} opt_tmpPoint Temporary point object.
- * @return {number} Minimum squared distance.
- */
-ol.geom.flat.closest.getssClosestPoint = function(flatCoordinates, offset,
-    endss, stride, maxDelta, isRing, x, y, closestPoint, minSquaredDistance,
-    opt_tmpPoint) {
-  var tmpPoint = goog.isDef(opt_tmpPoint) ? opt_tmpPoint : [NaN, NaN];
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    var ends = endss[i];
-    minSquaredDistance = ol.geom.flat.closest.getsClosestPoint(
-        flatCoordinates, offset, ends, stride,
-        maxDelta, isRing, x, y, closestPoint, minSquaredDistance, tmpPoint);
-    offset = ends[ends.length - 1];
-  }
-  return minSquaredDistance;
-};
-
-goog.provide('ol.geom.flat.deflate');
-
-goog.require('goog.asserts');
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {ol.Coordinate} coordinate Coordinate.
- * @param {number} stride Stride.
- * @return {number} offset Offset.
- */
-ol.geom.flat.deflate.coordinate =
-    function(flatCoordinates, offset, coordinate, stride) {
-  goog.asserts.assert(coordinate.length == stride,
-      'length of the coordinate array should match stride');
-  var i, ii;
-  for (i = 0, ii = coordinate.length; i < ii; ++i) {
-    flatCoordinates[offset++] = coordinate[i];
-  }
-  return offset;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<ol.Coordinate>} coordinates Coordinates.
- * @param {number} stride Stride.
- * @return {number} offset Offset.
- */
-ol.geom.flat.deflate.coordinates =
-    function(flatCoordinates, offset, coordinates, stride) {
-  var i, ii;
-  for (i = 0, ii = coordinates.length; i < ii; ++i) {
-    var coordinate = coordinates[i];
-    goog.asserts.assert(coordinate.length == stride,
-        'length of coordinate array should match stride');
-    var j;
-    for (j = 0; j < stride; ++j) {
-      flatCoordinates[offset++] = coordinate[j];
-    }
-  }
-  return offset;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<ol.Coordinate>>} coordinatess Coordinatess.
- * @param {number} stride Stride.
- * @param {Array.<number>=} opt_ends Ends.
- * @return {Array.<number>} Ends.
- */
-ol.geom.flat.deflate.coordinatess =
-    function(flatCoordinates, offset, coordinatess, stride, opt_ends) {
-  var ends = goog.isDef(opt_ends) ? opt_ends : [];
-  var i = 0;
-  var j, jj;
-  for (j = 0, jj = coordinatess.length; j < jj; ++j) {
-    var end = ol.geom.flat.deflate.coordinates(
-        flatCoordinates, offset, coordinatess[j], stride);
-    ends[i++] = end;
-    offset = end;
-  }
-  ends.length = i;
-  return ends;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<Array.<ol.Coordinate>>>} coordinatesss Coordinatesss.
- * @param {number} stride Stride.
- * @param {Array.<Array.<number>>=} opt_endss Endss.
- * @return {Array.<Array.<number>>} Endss.
- */
-ol.geom.flat.deflate.coordinatesss =
-    function(flatCoordinates, offset, coordinatesss, stride, opt_endss) {
-  var endss = goog.isDef(opt_endss) ? opt_endss : [];
-  var i = 0;
-  var j, jj;
-  for (j = 0, jj = coordinatesss.length; j < jj; ++j) {
-    var ends = ol.geom.flat.deflate.coordinatess(
-        flatCoordinates, offset, coordinatesss[j], stride, endss[i]);
-    endss[i++] = ends;
-    offset = ends[ends.length - 1];
-  }
-  endss.length = i;
-  return endss;
-};
-
-goog.provide('ol.geom.flat.inflate');
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {Array.<ol.Coordinate>=} opt_coordinates Coordinates.
- * @return {Array.<ol.Coordinate>} Coordinates.
- */
-ol.geom.flat.inflate.coordinates =
-    function(flatCoordinates, offset, end, stride, opt_coordinates) {
-  var coordinates = goog.isDef(opt_coordinates) ? opt_coordinates : [];
-  var i = 0;
-  var j;
-  for (j = offset; j < end; j += stride) {
-    coordinates[i++] = flatCoordinates.slice(j, j + stride);
-  }
-  coordinates.length = i;
-  return coordinates;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {Array.<Array.<ol.Coordinate>>=} opt_coordinatess Coordinatess.
- * @return {Array.<Array.<ol.Coordinate>>} Coordinatess.
- */
-ol.geom.flat.inflate.coordinatess =
-    function(flatCoordinates, offset, ends, stride, opt_coordinatess) {
-  var coordinatess = goog.isDef(opt_coordinatess) ? opt_coordinatess : [];
-  var i = 0;
-  var j, jj;
-  for (j = 0, jj = ends.length; j < jj; ++j) {
-    var end = ends[j];
-    coordinatess[i++] = ol.geom.flat.inflate.coordinates(
-        flatCoordinates, offset, end, stride, coordinatess[i]);
-    offset = end;
-  }
-  coordinatess.length = i;
-  return coordinatess;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Endss.
- * @param {number} stride Stride.
- * @param {Array.<Array.<Array.<ol.Coordinate>>>=} opt_coordinatesss
- *     Coordinatesss.
- * @return {Array.<Array.<Array.<ol.Coordinate>>>} Coordinatesss.
- */
-ol.geom.flat.inflate.coordinatesss =
-    function(flatCoordinates, offset, endss, stride, opt_coordinatesss) {
-  var coordinatesss = goog.isDef(opt_coordinatesss) ? opt_coordinatesss : [];
-  var i = 0;
-  var j, jj;
-  for (j = 0, jj = endss.length; j < jj; ++j) {
-    var ends = endss[j];
-    coordinatesss[i++] = ol.geom.flat.inflate.coordinatess(
-        flatCoordinates, offset, ends, stride, coordinatesss[i]);
-    offset = ends[ends.length - 1];
-  }
-  coordinatesss.length = i;
-  return coordinatesss;
-};
-
-// Based on simplify-js https://github.com/mourner/simplify-js
-// Copyright (c) 2012, Vladimir Agafonkin
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-//    1. Redistributions of source code must retain the above copyright notice,
-//       this list of conditions and the following disclaimer.
-//
-//    2. Redistributions in binary form must reproduce the above copyright
-//       notice, this list of conditions and the following disclaimer in the
-//       documentation and/or other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
-
-goog.provide('ol.geom.flat.simplify');
-
-goog.require('ol.math');
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {number} squaredTolerance Squared tolerance.
- * @param {boolean} highQuality Highest quality.
- * @param {Array.<number>=} opt_simplifiedFlatCoordinates Simplified flat
- *     coordinates.
- * @return {Array.<number>} Simplified line string.
- */
-ol.geom.flat.simplify.lineString = function(flatCoordinates, offset, end,
-    stride, squaredTolerance, highQuality, opt_simplifiedFlatCoordinates) {
-  var simplifiedFlatCoordinates = goog.isDef(opt_simplifiedFlatCoordinates) ?
-      opt_simplifiedFlatCoordinates : [];
-  if (!highQuality) {
-    end = ol.geom.flat.simplify.radialDistance(flatCoordinates, offset, end,
-        stride, squaredTolerance,
-        simplifiedFlatCoordinates, 0);
-    flatCoordinates = simplifiedFlatCoordinates;
-    offset = 0;
-    stride = 2;
-  }
-  simplifiedFlatCoordinates.length = ol.geom.flat.simplify.douglasPeucker(
-      flatCoordinates, offset, end, stride, squaredTolerance,
-      simplifiedFlatCoordinates, 0);
-  return simplifiedFlatCoordinates;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {number} squaredTolerance Squared tolerance.
- * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
- *     coordinates.
- * @param {number} simplifiedOffset Simplified offset.
- * @return {number} Simplified offset.
- */
-ol.geom.flat.simplify.douglasPeucker = function(flatCoordinates, offset, end,
-    stride, squaredTolerance, simplifiedFlatCoordinates, simplifiedOffset) {
-  var n = (end - offset) / stride;
-  if (n < 3) {
-    for (; offset < end; offset += stride) {
-      simplifiedFlatCoordinates[simplifiedOffset++] =
-          flatCoordinates[offset];
-      simplifiedFlatCoordinates[simplifiedOffset++] =
-          flatCoordinates[offset + 1];
-    }
-    return simplifiedOffset;
-  }
-  /** @type {Array.<number>} */
-  var markers = new Array(n);
-  markers[0] = 1;
-  markers[n - 1] = 1;
-  /** @type {Array.<number>} */
-  var stack = [offset, end - stride];
-  var index = 0;
-  var i;
-  while (stack.length > 0) {
-    var last = stack.pop();
-    var first = stack.pop();
-    var maxSquaredDistance = 0;
-    var x1 = flatCoordinates[first];
-    var y1 = flatCoordinates[first + 1];
-    var x2 = flatCoordinates[last];
-    var y2 = flatCoordinates[last + 1];
-    for (i = first + stride; i < last; i += stride) {
-      var x = flatCoordinates[i];
-      var y = flatCoordinates[i + 1];
-      var squaredDistance = ol.math.squaredSegmentDistance(
-          x, y, x1, y1, x2, y2);
-      if (squaredDistance > maxSquaredDistance) {
-        index = i;
-        maxSquaredDistance = squaredDistance;
-      }
-    }
-    if (maxSquaredDistance > squaredTolerance) {
-      markers[(index - offset) / stride] = 1;
-      if (first + stride < index) {
-        stack.push(first, index);
-      }
-      if (index + stride < last) {
-        stack.push(index, last);
-      }
-    }
-  }
-  for (i = 0; i < n; ++i) {
-    if (markers[i]) {
-      simplifiedFlatCoordinates[simplifiedOffset++] =
-          flatCoordinates[offset + i * stride];
-      simplifiedFlatCoordinates[simplifiedOffset++] =
-          flatCoordinates[offset + i * stride + 1];
-    }
-  }
-  return simplifiedOffset;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {number} squaredTolerance Squared tolerance.
- * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
- *     coordinates.
- * @param {number} simplifiedOffset Simplified offset.
- * @param {Array.<number>} simplifiedEnds Simplified ends.
- * @return {number} Simplified offset.
- */
-ol.geom.flat.simplify.douglasPeuckers = function(flatCoordinates, offset,
-    ends, stride, squaredTolerance, simplifiedFlatCoordinates,
-    simplifiedOffset, simplifiedEnds) {
-  var i, ii;
-  for (i = 0, ii = ends.length; i < ii; ++i) {
-    var end = ends[i];
-    simplifiedOffset = ol.geom.flat.simplify.douglasPeucker(
-        flatCoordinates, offset, end, stride, squaredTolerance,
-        simplifiedFlatCoordinates, simplifiedOffset);
-    simplifiedEnds.push(simplifiedOffset);
-    offset = end;
-  }
-  return simplifiedOffset;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Endss.
- * @param {number} stride Stride.
- * @param {number} squaredTolerance Squared tolerance.
- * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
- *     coordinates.
- * @param {number} simplifiedOffset Simplified offset.
- * @param {Array.<Array.<number>>} simplifiedEndss Simplified endss.
- * @return {number} Simplified offset.
- */
-ol.geom.flat.simplify.douglasPeuckerss = function(
-    flatCoordinates, offset, endss, stride, squaredTolerance,
-    simplifiedFlatCoordinates, simplifiedOffset, simplifiedEndss) {
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    var ends = endss[i];
-    var simplifiedEnds = [];
-    simplifiedOffset = ol.geom.flat.simplify.douglasPeuckers(
-        flatCoordinates, offset, ends, stride, squaredTolerance,
-        simplifiedFlatCoordinates, simplifiedOffset, simplifiedEnds);
-    simplifiedEndss.push(simplifiedEnds);
-    offset = ends[ends.length - 1];
-  }
-  return simplifiedOffset;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {number} squaredTolerance Squared tolerance.
- * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
- *     coordinates.
- * @param {number} simplifiedOffset Simplified offset.
- * @return {number} Simplified offset.
- */
-ol.geom.flat.simplify.radialDistance = function(flatCoordinates, offset, end,
-    stride, squaredTolerance, simplifiedFlatCoordinates, simplifiedOffset) {
-  if (end <= offset + stride) {
-    // zero or one point, no simplification possible, so copy and return
-    for (; offset < end; offset += stride) {
-      simplifiedFlatCoordinates[simplifiedOffset++] = flatCoordinates[offset];
-      simplifiedFlatCoordinates[simplifiedOffset++] =
-          flatCoordinates[offset + 1];
-    }
-    return simplifiedOffset;
-  }
-  var x1 = flatCoordinates[offset];
-  var y1 = flatCoordinates[offset + 1];
-  // copy first point
-  simplifiedFlatCoordinates[simplifiedOffset++] = x1;
-  simplifiedFlatCoordinates[simplifiedOffset++] = y1;
-  var x2 = x1;
-  var y2 = y1;
-  for (offset += stride; offset < end; offset += stride) {
-    x2 = flatCoordinates[offset];
-    y2 = flatCoordinates[offset + 1];
-    if (ol.math.squaredDistance(x1, y1, x2, y2) > squaredTolerance) {
-      // copy point at offset
-      simplifiedFlatCoordinates[simplifiedOffset++] = x2;
-      simplifiedFlatCoordinates[simplifiedOffset++] = y2;
-      x1 = x2;
-      y1 = y2;
-    }
-  }
-  if (x2 != x1 || y2 != y1) {
-    // copy last point
-    simplifiedFlatCoordinates[simplifiedOffset++] = x2;
-    simplifiedFlatCoordinates[simplifiedOffset++] = y2;
-  }
-  return simplifiedOffset;
-};
-
-
-/**
- * @param {number} value Value.
- * @param {number} tolerance Tolerance.
- * @return {number} Rounded value.
- */
-ol.geom.flat.simplify.snap = function(value, tolerance) {
-  return tolerance * Math.round(value / tolerance);
-};
-
-
-/**
- * Simplifies a line string using an algorithm designed by Tim Schaub.
- * Coordinates are snapped to the nearest value in a virtual grid and
- * consecutive duplicate coordinates are discarded.  This effectively preserves
- * topology as the simplification of any subsection of a line string is
- * independent of the rest of the line string.  This means that, for examples,
- * the common edge between two polygons will be simplified to the same line
- * string independently in both polygons.  This implementation uses a single
- * pass over the coordinates and eliminates intermediate collinear points.
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {number} tolerance Tolerance.
- * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
- *     coordinates.
- * @param {number} simplifiedOffset Simplified offset.
- * @return {number} Simplified offset.
- */
-ol.geom.flat.simplify.quantize = function(flatCoordinates, offset, end, stride,
-    tolerance, simplifiedFlatCoordinates, simplifiedOffset) {
-  // do nothing if the line is empty
-  if (offset == end) {
-    return simplifiedOffset;
-  }
-  // snap the first coordinate (P1)
-  var x1 = ol.geom.flat.simplify.snap(flatCoordinates[offset], tolerance);
-  var y1 = ol.geom.flat.simplify.snap(flatCoordinates[offset + 1], tolerance);
-  offset += stride;
-  // add the first coordinate to the output
-  simplifiedFlatCoordinates[simplifiedOffset++] = x1;
-  simplifiedFlatCoordinates[simplifiedOffset++] = y1;
-  // find the next coordinate that does not snap to the same value as the first
-  // coordinate (P2)
-  var x2, y2;
-  do {
-    x2 = ol.geom.flat.simplify.snap(flatCoordinates[offset], tolerance);
-    y2 = ol.geom.flat.simplify.snap(flatCoordinates[offset + 1], tolerance);
-    offset += stride;
-    if (offset == end) {
-      // all coordinates snap to the same value, the line collapses to a point
-      // push the last snapped value anyway to ensure that the output contains
-      // at least two points
-      // FIXME should we really return at least two points anyway?
-      simplifiedFlatCoordinates[simplifiedOffset++] = x2;
-      simplifiedFlatCoordinates[simplifiedOffset++] = y2;
-      return simplifiedOffset;
-    }
-  } while (x2 == x1 && y2 == y1);
-  while (offset < end) {
-    var x3, y3;
-    // snap the next coordinate (P3)
-    x3 = ol.geom.flat.simplify.snap(flatCoordinates[offset], tolerance);
-    y3 = ol.geom.flat.simplify.snap(flatCoordinates[offset + 1], tolerance);
-    offset += stride;
-    // skip P3 if it is equal to P2
-    if (x3 == x2 && y3 == y2) {
-      continue;
-    }
-    // calculate the delta between P1 and P2
-    var dx1 = x2 - x1;
-    var dy1 = y2 - y1;
-    // calculate the delta between P3 and P1
-    var dx2 = x3 - x1;
-    var dy2 = y3 - y1;
-    // if P1, P2, and P3 are colinear and P3 is further from P1 than P2 is from
-    // P1 in the same direction then P2 is on the straight line between P1 and
-    // P3
-    if ((dx1 * dy2 == dy1 * dx2) &&
-        ((dx1 < 0 && dx2 < dx1) || dx1 == dx2 || (dx1 > 0 && dx2 > dx1)) &&
-        ((dy1 < 0 && dy2 < dy1) || dy1 == dy2 || (dy1 > 0 && dy2 > dy1))) {
-      // discard P2 and set P2 = P3
-      x2 = x3;
-      y2 = y3;
-      continue;
-    }
-    // either P1, P2, and P3 are not colinear, or they are colinear but P3 is
-    // between P3 and P1 or on the opposite half of the line to P2.  add P2,
-    // and continue with P1 = P2 and P2 = P3
-    simplifiedFlatCoordinates[simplifiedOffset++] = x2;
-    simplifiedFlatCoordinates[simplifiedOffset++] = y2;
-    x1 = x2;
-    y1 = y2;
-    x2 = x3;
-    y2 = y3;
-  }
-  // add the last point (P2)
-  simplifiedFlatCoordinates[simplifiedOffset++] = x2;
-  simplifiedFlatCoordinates[simplifiedOffset++] = y2;
-  return simplifiedOffset;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {number} tolerance Tolerance.
- * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
- *     coordinates.
- * @param {number} simplifiedOffset Simplified offset.
- * @param {Array.<number>} simplifiedEnds Simplified ends.
- * @return {number} Simplified offset.
- */
-ol.geom.flat.simplify.quantizes = function(
-    flatCoordinates, offset, ends, stride,
-    tolerance,
-    simplifiedFlatCoordinates, simplifiedOffset, simplifiedEnds) {
-  var i, ii;
-  for (i = 0, ii = ends.length; i < ii; ++i) {
-    var end = ends[i];
-    simplifiedOffset = ol.geom.flat.simplify.quantize(
-        flatCoordinates, offset, end, stride,
-        tolerance,
-        simplifiedFlatCoordinates, simplifiedOffset);
-    simplifiedEnds.push(simplifiedOffset);
-    offset = end;
-  }
-  return simplifiedOffset;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Endss.
- * @param {number} stride Stride.
- * @param {number} tolerance Tolerance.
- * @param {Array.<number>} simplifiedFlatCoordinates Simplified flat
- *     coordinates.
- * @param {number} simplifiedOffset Simplified offset.
- * @param {Array.<Array.<number>>} simplifiedEndss Simplified endss.
- * @return {number} Simplified offset.
- */
-ol.geom.flat.simplify.quantizess = function(
-    flatCoordinates, offset, endss, stride,
-    tolerance,
-    simplifiedFlatCoordinates, simplifiedOffset, simplifiedEndss) {
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    var ends = endss[i];
-    var simplifiedEnds = [];
-    simplifiedOffset = ol.geom.flat.simplify.quantizes(
-        flatCoordinates, offset, ends, stride,
-        tolerance,
-        simplifiedFlatCoordinates, simplifiedOffset, simplifiedEnds);
-    simplifiedEndss.push(simplifiedEnds);
-    offset = ends[ends.length - 1];
-  }
-  return simplifiedOffset;
-};
-
-goog.provide('ol.geom.LinearRing');
-
-goog.require('ol.extent');
-goog.require('ol.geom.GeometryLayout');
-goog.require('ol.geom.GeometryType');
-goog.require('ol.geom.SimpleGeometry');
-goog.require('ol.geom.flat.area');
-goog.require('ol.geom.flat.closest');
-goog.require('ol.geom.flat.deflate');
-goog.require('ol.geom.flat.inflate');
-goog.require('ol.geom.flat.simplify');
-
-
-
-/**
- * @classdesc
- * Linear ring geometry. Only used as part of polygon; cannot be rendered
- * on its own.
- *
- * @constructor
- * @extends {ol.geom.SimpleGeometry}
- * @param {Array.<ol.Coordinate>} coordinates Coordinates.
- * @param {ol.geom.GeometryLayout=} opt_layout Layout.
- * @api stable
- */
-ol.geom.LinearRing = function(coordinates, opt_layout) {
-
-  goog.base(this);
-
-  /**
-   * @private
-   * @type {number}
-   */
-  this.maxDelta_ = -1;
-
-  /**
-   * @private
-   * @type {number}
-   */
-  this.maxDeltaRevision_ = -1;
-
-  this.setCoordinates(coordinates,
-      /** @type {ol.geom.GeometryLayout|undefined} */ (opt_layout));
-
-};
-goog.inherits(ol.geom.LinearRing, ol.geom.SimpleGeometry);
-
-
-/**
- * Make a complete copy of the geometry.
- * @return {!ol.geom.LinearRing} Clone.
- * @api stable
- */
-ol.geom.LinearRing.prototype.clone = function() {
-  var linearRing = new ol.geom.LinearRing(null);
-  linearRing.setFlatCoordinates(this.layout, this.flatCoordinates.slice());
-  return linearRing;
-};
-
-
-/**
- * @inheritDoc
- */
-ol.geom.LinearRing.prototype.closestPointXY =
-    function(x, y, closestPoint, minSquaredDistance) {
-  if (minSquaredDistance <
-      ol.extent.closestSquaredDistanceXY(this.getExtent(), x, y)) {
-    return minSquaredDistance;
-  }
-  if (this.maxDeltaRevision_ != this.getRevision()) {
-    this.maxDelta_ = Math.sqrt(ol.geom.flat.closest.getMaxSquaredDelta(
-        this.flatCoordinates, 0, this.flatCoordinates.length, this.stride, 0));
-    this.maxDeltaRevision_ = this.getRevision();
-  }
-  return ol.geom.flat.closest.getClosestPoint(
-      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride,
-      this.maxDelta_, true, x, y, closestPoint, minSquaredDistance);
-};
-
-
-/**
- * Return the area of the linear ring on projected plane.
- * @return {number} Area (on projected plane).
- * @api stable
- */
-ol.geom.LinearRing.prototype.getArea = function() {
-  return ol.geom.flat.area.linearRing(
-      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride);
-};
-
-
-/**
- * Return the coordinates of the linear ring.
- * @return {Array.<ol.Coordinate>} Coordinates.
- * @api stable
- */
-ol.geom.LinearRing.prototype.getCoordinates = function() {
-  return ol.geom.flat.inflate.coordinates(
-      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride);
-};
-
-
-/**
- * @inheritDoc
- */
-ol.geom.LinearRing.prototype.getSimplifiedGeometryInternal =
-    function(squaredTolerance) {
-  var simplifiedFlatCoordinates = [];
-  simplifiedFlatCoordinates.length = ol.geom.flat.simplify.douglasPeucker(
-      this.flatCoordinates, 0, this.flatCoordinates.length, this.stride,
-      squaredTolerance, simplifiedFlatCoordinates, 0);
-  var simplifiedLinearRing = new ol.geom.LinearRing(null);
-  simplifiedLinearRing.setFlatCoordinates(
-      ol.geom.GeometryLayout.XY, simplifiedFlatCoordinates);
-  return simplifiedLinearRing;
-};
-
-
-/**
- * @inheritDoc
- * @api stable
- */
-ol.geom.LinearRing.prototype.getType = function() {
-  return ol.geom.GeometryType.LINEAR_RING;
-};
-
-
-/**
- * Set the coordinates of the linear ring.
- * @param {Array.<ol.Coordinate>} coordinates Coordinates.
- * @param {ol.geom.GeometryLayout=} opt_layout Layout.
- * @api stable
- */
-ol.geom.LinearRing.prototype.setCoordinates =
-    function(coordinates, opt_layout) {
-  if (goog.isNull(coordinates)) {
-    this.setFlatCoordinates(ol.geom.GeometryLayout.XY, null);
-  } else {
-    this.setLayout(opt_layout, coordinates, 1);
-    if (goog.isNull(this.flatCoordinates)) {
-      this.flatCoordinates = [];
-    }
-    this.flatCoordinates.length = ol.geom.flat.deflate.coordinates(
-        this.flatCoordinates, 0, coordinates, this.stride);
-    this.changed();
-  }
-};
-
-
-/**
- * @param {ol.geom.GeometryLayout} layout Layout.
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- */
-ol.geom.LinearRing.prototype.setFlatCoordinates =
-    function(layout, flatCoordinates) {
-  this.setFlatCoordinatesInternal(layout, flatCoordinates);
-  this.changed();
-};
-
-goog.provide('ol.geom.Point');
-
-goog.require('ol.extent');
-goog.require('ol.geom.GeometryLayout');
-goog.require('ol.geom.GeometryType');
-goog.require('ol.geom.SimpleGeometry');
-goog.require('ol.geom.flat.deflate');
-goog.require('ol.math');
-
-
-
-/**
- * @classdesc
- * Point geometry.
- *
- * @constructor
- * @extends {ol.geom.SimpleGeometry}
- * @param {ol.Coordinate} coordinates Coordinates.
- * @param {ol.geom.GeometryLayout=} opt_layout Layout.
- * @api stable
- */
-ol.geom.Point = function(coordinates, opt_layout) {
-  goog.base(this);
-  this.setCoordinates(coordinates,
-      /** @type {ol.geom.GeometryLayout|undefined} */ (opt_layout));
-};
-goog.inherits(ol.geom.Point, ol.geom.SimpleGeometry);
-
-
-/**
- * Make a complete copy of the geometry.
- * @return {!ol.geom.Point} Clone.
- * @api stable
- */
-ol.geom.Point.prototype.clone = function() {
-  var point = new ol.geom.Point(null);
-  point.setFlatCoordinates(this.layout, this.flatCoordinates.slice());
-  return point;
-};
-
-
-/**
- * @inheritDoc
- */
-ol.geom.Point.prototype.closestPointXY =
-    function(x, y, closestPoint, minSquaredDistance) {
-  var flatCoordinates = this.flatCoordinates;
-  var squaredDistance = ol.math.squaredDistance(
-      x, y, flatCoordinates[0], flatCoordinates[1]);
-  if (squaredDistance < minSquaredDistance) {
-    var stride = this.stride;
-    var i;
-    for (i = 0; i < stride; ++i) {
-      closestPoint[i] = flatCoordinates[i];
-    }
-    closestPoint.length = stride;
-    return squaredDistance;
-  } else {
-    return minSquaredDistance;
-  }
-};
-
-
-/**
- * Return the coordinate of the point.
- * @return {ol.Coordinate} Coordinates.
- * @api stable
- */
-ol.geom.Point.prototype.getCoordinates = function() {
-  return goog.isNull(this.flatCoordinates) ? [] : this.flatCoordinates.slice();
-};
-
-
-/**
- * @inheritDoc
- */
-ol.geom.Point.prototype.computeExtent = function(extent) {
-  return ol.extent.createOrUpdateFromCoordinate(this.flatCoordinates, extent);
-};
-
-
-/**
- * @inheritDoc
- * @api stable
- */
-ol.geom.Point.prototype.getType = function() {
-  return ol.geom.GeometryType.POINT;
-};
-
-
-/**
- * @inheritDoc
- * @api stable
- */
-ol.geom.Point.prototype.intersectsExtent = function(extent) {
-  return ol.extent.containsXY(extent,
-      this.flatCoordinates[0], this.flatCoordinates[1]);
-};
-
-
-/**
- * Set the coordinate of the point.
- * @param {ol.Coordinate} coordinates Coordinates.
- * @param {ol.geom.GeometryLayout=} opt_layout Layout.
- * @api stable
- */
-ol.geom.Point.prototype.setCoordinates = function(coordinates, opt_layout) {
-  if (goog.isNull(coordinates)) {
-    this.setFlatCoordinates(ol.geom.GeometryLayout.XY, null);
-  } else {
-    this.setLayout(opt_layout, coordinates, 0);
-    if (goog.isNull(this.flatCoordinates)) {
-      this.flatCoordinates = [];
-    }
-    this.flatCoordinates.length = ol.geom.flat.deflate.coordinate(
-        this.flatCoordinates, 0, coordinates, this.stride);
-    this.changed();
-  }
-};
-
-
-/**
- * @param {ol.geom.GeometryLayout} layout Layout.
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- */
-ol.geom.Point.prototype.setFlatCoordinates = function(layout, flatCoordinates) {
-  this.setFlatCoordinatesInternal(layout, flatCoordinates);
-  this.changed();
-};
-
-goog.provide('ol.geom.flat.contains');
-
-goog.require('goog.asserts');
-goog.require('ol.extent');
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {ol.Extent} extent Extent.
- * @return {boolean} Contains extent.
- */
-ol.geom.flat.contains.linearRingContainsExtent =
-    function(flatCoordinates, offset, end, stride, extent) {
-  var outside = ol.extent.forEachCorner(extent,
-      /**
-       * @param {ol.Coordinate} coordinate Coordinate.
-       */
-      function(coordinate) {
-        return !ol.geom.flat.contains.linearRingContainsXY(flatCoordinates,
-            offset, end, stride, coordinate[0], coordinate[1]);
-      });
-  return !outside;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {number} x X.
- * @param {number} y Y.
- * @return {boolean} Contains (x, y).
- */
-ol.geom.flat.contains.linearRingContainsXY =
-    function(flatCoordinates, offset, end, stride, x, y) {
-  // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
-  var contains = false;
-  var x1 = flatCoordinates[end - stride];
-  var y1 = flatCoordinates[end - stride + 1];
-  for (; offset < end; offset += stride) {
-    var x2 = flatCoordinates[offset];
-    var y2 = flatCoordinates[offset + 1];
-    var intersect = ((y1 > y) != (y2 > y)) &&
-        (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1);
-    if (intersect) {
-      contains = !contains;
-    }
-    x1 = x2;
-    y1 = y2;
-  }
-  return contains;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {number} x X.
- * @param {number} y Y.
- * @return {boolean} Contains (x, y).
- */
-ol.geom.flat.contains.linearRingsContainsXY =
-    function(flatCoordinates, offset, ends, stride, x, y) {
-  goog.asserts.assert(ends.length > 0, 'ends should not be an empty array');
-  if (ends.length === 0) {
-    return false;
-  }
-  if (!ol.geom.flat.contains.linearRingContainsXY(
-      flatCoordinates, offset, ends[0], stride, x, y)) {
-    return false;
-  }
-  var i, ii;
-  for (i = 1, ii = ends.length; i < ii; ++i) {
-    if (ol.geom.flat.contains.linearRingContainsXY(
-        flatCoordinates, ends[i - 1], ends[i], stride, x, y)) {
-      return false;
-    }
-  }
-  return true;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Endss.
- * @param {number} stride Stride.
- * @param {number} x X.
- * @param {number} y Y.
- * @return {boolean} Contains (x, y).
- */
-ol.geom.flat.contains.linearRingssContainsXY =
-    function(flatCoordinates, offset, endss, stride, x, y) {
-  goog.asserts.assert(endss.length > 0, 'endss should not be an empty array');
-  if (endss.length === 0) {
-    return false;
-  }
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    var ends = endss[i];
-    if (ol.geom.flat.contains.linearRingsContainsXY(
-        flatCoordinates, offset, ends, stride, x, y)) {
-      return true;
-    }
-    offset = ends[ends.length - 1];
-  }
-  return false;
-};
-
-goog.provide('ol.geom.flat.interiorpoint');
-
-goog.require('goog.asserts');
-goog.require('ol.geom.flat.contains');
-
-
-/**
- * Calculates a point that is likely to lie in the interior of the linear rings.
- * Inspired by JTS's com.vividsolutions.jts.geom.Geometry#getInteriorPoint.
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {Array.<number>} flatCenters Flat centers.
- * @param {number} flatCentersOffset Flat center offset.
- * @param {Array.<number>=} opt_dest Destination.
- * @return {Array.<number>} Destination.
- */
-ol.geom.flat.interiorpoint.linearRings = function(flatCoordinates, offset,
-    ends, stride, flatCenters, flatCentersOffset, opt_dest) {
-  var i, ii, x, x1, x2, y1, y2;
-  var y = flatCenters[flatCentersOffset + 1];
-  /** @type {Array.<number>} */
-  var intersections = [];
-  // Calculate intersections with the horizontal line
-  var end = ends[0];
-  x1 = flatCoordinates[end - stride];
-  y1 = flatCoordinates[end - stride + 1];
-  for (i = offset; i < end; i += stride) {
-    x2 = flatCoordinates[i];
-    y2 = flatCoordinates[i + 1];
-    if ((y <= y1 && y2 <= y) || (y1 <= y && y <= y2)) {
-      x = (y - y1) / (y2 - y1) * (x2 - x1) + x1;
-      intersections.push(x);
-    }
-    x1 = x2;
-    y1 = y2;
-  }
-  // Find the longest segment of the horizontal line that has its center point
-  // inside the linear ring.
-  var pointX = NaN;
-  var maxSegmentLength = -Infinity;
-  intersections.sort();
-  x1 = intersections[0];
-  for (i = 1, ii = intersections.length; i < ii; ++i) {
-    x2 = intersections[i];
-    var segmentLength = Math.abs(x2 - x1);
-    if (segmentLength > maxSegmentLength) {
-      x = (x1 + x2) / 2;
-      if (ol.geom.flat.contains.linearRingsContainsXY(
-          flatCoordinates, offset, ends, stride, x, y)) {
-        pointX = x;
-        maxSegmentLength = segmentLength;
-      }
-    }
-    x1 = x2;
-  }
-  if (isNaN(pointX)) {
-    // There is no horizontal line that has its center point inside the linear
-    // ring.  Use the center of the the linear ring's extent.
-    pointX = flatCenters[flatCentersOffset];
-  }
-  if (goog.isDef(opt_dest)) {
-    opt_dest.push(pointX, y);
-    return opt_dest;
-  } else {
-    return [pointX, y];
-  }
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Endss.
- * @param {number} stride Stride.
- * @param {Array.<number>} flatCenters Flat centers.
- * @return {Array.<number>} Interior points.
- */
-ol.geom.flat.interiorpoint.linearRingss =
-    function(flatCoordinates, offset, endss, stride, flatCenters) {
-  goog.asserts.assert(2 * endss.length == flatCenters.length,
-      'endss.length times 2 should be flatCenters.length');
-  var interiorPoints = [];
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    var ends = endss[i];
-    interiorPoints = ol.geom.flat.interiorpoint.linearRings(flatCoordinates,
-        offset, ends, stride, flatCenters, 2 * i, interiorPoints);
-    offset = ends[ends.length - 1];
-  }
-  return interiorPoints;
-};
-
-goog.provide('ol.geom.flat.segments');
-
-
-/**
- * This function calls `callback` for each segment of the flat coordinates
- * array. If the callback returns a truthy value the function returns that
- * value immediately. Otherwise the function returns `false`.
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {function(this: S, ol.Coordinate, ol.Coordinate): T} callback Function
- *     called for each segment.
- * @param {S=} opt_this The object to be used as the value of 'this'
- *     within callback.
- * @return {T|boolean} Value.
- * @template T,S
- */
-ol.geom.flat.segments.forEach =
-    function(flatCoordinates, offset, end, stride, callback, opt_this) {
-  var point1 = [flatCoordinates[offset], flatCoordinates[offset + 1]];
-  var point2 = [];
-  var ret;
-  for (; (offset + stride) < end; offset += stride) {
-    point2[0] = flatCoordinates[offset + stride];
-    point2[1] = flatCoordinates[offset + stride + 1];
-    ret = callback.call(opt_this, point1, point2);
-    if (ret) {
-      return ret;
-    }
-    point1[0] = point2[0];
-    point1[1] = point2[1];
-  }
-  return false;
-};
-
-goog.provide('ol.geom.flat.intersectsextent');
-
-goog.require('goog.asserts');
-goog.require('ol.extent');
-goog.require('ol.geom.flat.contains');
-goog.require('ol.geom.flat.segments');
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {ol.Extent} extent Extent.
- * @return {boolean} True if the geometry and the extent intersect.
- */
-ol.geom.flat.intersectsextent.lineString =
-    function(flatCoordinates, offset, end, stride, extent) {
-  var coordinatesExtent = ol.extent.extendFlatCoordinates(
-      ol.extent.createEmpty(), flatCoordinates, offset, end, stride);
-  if (!ol.extent.intersects(extent, coordinatesExtent)) {
-    return false;
-  }
-  if (ol.extent.containsExtent(extent, coordinatesExtent)) {
-    return true;
-  }
-  if (coordinatesExtent[0] >= extent[0] &&
-      coordinatesExtent[2] <= extent[2]) {
-    return true;
-  }
-  if (coordinatesExtent[1] >= extent[1] &&
-      coordinatesExtent[3] <= extent[3]) {
-    return true;
-  }
-  return ol.geom.flat.segments.forEach(flatCoordinates, offset, end, stride,
-      /**
-       * @param {ol.Coordinate} point1 Start point.
-       * @param {ol.Coordinate} point2 End point.
-       * @return {boolean} `true` if the segment and the extent intersect,
-       *     `false` otherwise.
-       */
-      function(point1, point2) {
-        return ol.extent.intersectsSegment(extent, point1, point2);
-      });
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {ol.Extent} extent Extent.
- * @return {boolean} True if the geometry and the extent intersect.
- */
-ol.geom.flat.intersectsextent.lineStrings =
-    function(flatCoordinates, offset, ends, stride, extent) {
-  var i, ii;
-  for (i = 0, ii = ends.length; i < ii; ++i) {
-    if (ol.geom.flat.intersectsextent.lineString(
-        flatCoordinates, offset, ends[i], stride, extent)) {
-      return true;
-    }
-    offset = ends[i];
-  }
-  return false;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @param {ol.Extent} extent Extent.
- * @return {boolean} True if the geometry and the extent intersect.
- */
-ol.geom.flat.intersectsextent.linearRing =
-    function(flatCoordinates, offset, end, stride, extent) {
-  if (ol.geom.flat.intersectsextent.lineString(
-      flatCoordinates, offset, end, stride, extent)) {
-    return true;
-  }
-  if (ol.geom.flat.contains.linearRingContainsXY(
-      flatCoordinates, offset, end, stride, extent[0], extent[1])) {
-    return true;
-  }
-  if (ol.geom.flat.contains.linearRingContainsXY(
-      flatCoordinates, offset, end, stride, extent[0], extent[3])) {
-    return true;
-  }
-  if (ol.geom.flat.contains.linearRingContainsXY(
-      flatCoordinates, offset, end, stride, extent[2], extent[1])) {
-    return true;
-  }
-  if (ol.geom.flat.contains.linearRingContainsXY(
-      flatCoordinates, offset, end, stride, extent[2], extent[3])) {
-    return true;
-  }
-  return false;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {ol.Extent} extent Extent.
- * @return {boolean} True if the geometry and the extent intersect.
- */
-ol.geom.flat.intersectsextent.linearRings =
-    function(flatCoordinates, offset, ends, stride, extent) {
-  goog.asserts.assert(ends.length > 0, 'ends should not be an empty array');
-  if (!ol.geom.flat.intersectsextent.linearRing(
-      flatCoordinates, offset, ends[0], stride, extent)) {
-    return false;
-  }
-  if (ends.length === 1) {
-    return true;
-  }
-  var i, ii;
-  for (i = 1, ii = ends.length; i < ii; ++i) {
-    if (ol.geom.flat.contains.linearRingContainsExtent(
-        flatCoordinates, ends[i - 1], ends[i], stride, extent)) {
-      return false;
-    }
-  }
-  return true;
-};
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Endss.
- * @param {number} stride Stride.
- * @param {ol.Extent} extent Extent.
- * @return {boolean} True if the geometry and the extent intersect.
- */
-ol.geom.flat.intersectsextent.linearRingss =
-    function(flatCoordinates, offset, endss, stride, extent) {
-  goog.asserts.assert(endss.length > 0, 'endss should not be an empty array');
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    var ends = endss[i];
-    if (ol.geom.flat.intersectsextent.linearRings(
-        flatCoordinates, offset, ends, stride, extent)) {
-      return true;
-    }
-    offset = ends[ends.length - 1];
-  }
-  return false;
-};
-
-goog.provide('ol.geom.flat.reverse');
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- */
-ol.geom.flat.reverse.coordinates =
-    function(flatCoordinates, offset, end, stride) {
-  while (offset < end - stride) {
-    var i;
-    for (i = 0; i < stride; ++i) {
-      var tmp = flatCoordinates[offset + i];
-      flatCoordinates[offset + i] = flatCoordinates[end - stride + i];
-      flatCoordinates[end - stride + i] = tmp;
-    }
-    offset += stride;
-    end -= stride;
-  }
-};
-
-goog.provide('ol.geom.flat.orient');
-
-goog.require('ol.geom.flat.reverse');
-
-
-/**
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {number} end End.
- * @param {number} stride Stride.
- * @return {boolean} Is clockwise.
- */
-ol.geom.flat.orient.linearRingIsClockwise =
-    function(flatCoordinates, offset, end, stride) {
-  // http://tinyurl.com/clockwise-method
-  // https://github.com/OSGeo/gdal/blob/trunk/gdal/ogr/ogrlinearring.cpp
-  var edge = 0;
-  var x1 = flatCoordinates[end - stride];
-  var y1 = flatCoordinates[end - stride + 1];
-  for (; offset < end; offset += stride) {
-    var x2 = flatCoordinates[offset];
-    var y2 = flatCoordinates[offset + 1];
-    edge += (x2 - x1) * (y2 + y1);
-    x1 = x2;
-    y1 = y2;
-  }
-  return edge > 0;
-};
-
-
-/**
- * Determines if linear rings are oriented.  By default, left-hand orientation
- * is tested (first ring must be clockwise, remaining rings counter-clockwise).
- * To test for right-hand orientation, use the `opt_right` argument.
- *
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Array of end indexes.
- * @param {number} stride Stride.
- * @param {boolean=} opt_right Test for right-hand orientation
- *     (counter-clockwise exterior ring and clockwise interior rings).
- * @return {boolean} Rings are correctly oriented.
- */
-ol.geom.flat.orient.linearRingsAreOriented =
-    function(flatCoordinates, offset, ends, stride, opt_right) {
-  var right = goog.isDef(opt_right) ? opt_right : false;
-  var i, ii;
-  for (i = 0, ii = ends.length; i < ii; ++i) {
-    var end = ends[i];
-    var isClockwise = ol.geom.flat.orient.linearRingIsClockwise(
-        flatCoordinates, offset, end, stride);
-    if (i === 0) {
-      if ((right && isClockwise) || (!right && !isClockwise)) {
-        return false;
-      }
-    } else {
-      if ((right && !isClockwise) || (!right && isClockwise)) {
-        return false;
-      }
-    }
-    offset = end;
-  }
-  return true;
-};
-
-
-/**
- * Determines if linear rings are oriented.  By default, left-hand orientation
- * is tested (first ring must be clockwise, remaining rings counter-clockwise).
- * To test for right-hand orientation, use the `opt_right` argument.
- *
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Array of array of end indexes.
- * @param {number} stride Stride.
- * @param {boolean=} opt_right Test for right-hand orientation
- *     (counter-clockwise exterior ring and clockwise interior rings).
- * @return {boolean} Rings are correctly oriented.
- */
-ol.geom.flat.orient.linearRingssAreOriented =
-    function(flatCoordinates, offset, endss, stride, opt_right) {
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    if (!ol.geom.flat.orient.linearRingsAreOriented(
-        flatCoordinates, offset, endss[i], stride, opt_right)) {
-      return false;
-    }
-  }
-  return true;
-};
-
-
-/**
- * Orient coordinates in a flat array of linear rings.  By default, rings
- * are oriented following the left-hand rule (clockwise for exterior and
- * counter-clockwise for interior rings).  To orient according to the
- * right-hand rule, use the `opt_right` argument.
- *
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<number>} ends Ends.
- * @param {number} stride Stride.
- * @param {boolean=} opt_right Follow the right-hand rule for orientation.
- * @return {number} End.
- */
-ol.geom.flat.orient.orientLinearRings =
-    function(flatCoordinates, offset, ends, stride, opt_right) {
-  var right = goog.isDef(opt_right) ? opt_right : false;
-  var i, ii;
-  for (i = 0, ii = ends.length; i < ii; ++i) {
-    var end = ends[i];
-    var isClockwise = ol.geom.flat.orient.linearRingIsClockwise(
-        flatCoordinates, offset, end, stride);
-    var reverse = i === 0 ?
-        (right && isClockwise) || (!right && !isClockwise) :
-        (right && !isClockwise) || (!right && isClockwise);
-    if (reverse) {
-      ol.geom.flat.reverse.coordinates(flatCoordinates, offset, end, stride);
-    }
-    offset = end;
-  }
-  return offset;
-};
-
-
-/**
- * Orient coordinates in a flat array of linear rings.  By default, rings
- * are oriented following the left-hand rule (clockwise for exterior and
- * counter-clockwise for interior rings).  To orient according to the
- * right-hand rule, use the `opt_right` argument.
- *
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {number} offset Offset.
- * @param {Array.<Array.<number>>} endss Array of array of end indexes.
- * @param {number} stride Stride.
- * @param {boolean=} opt_right Follow the right-hand rule for orientation.
- * @return {number} End.
- */
-ol.geom.flat.orient.orientLinearRingss =
-    function(flatCoordinates, offset, endss, stride, opt_right) {
-  var i, ii;
-  for (i = 0, ii = endss.length; i < ii; ++i) {
-    offset = ol.geom.flat.orient.orientLinearRings(
-        flatCoordinates, offset, endss[i], stride, opt_right);
-  }
-  return offset;
-};
-
-goog.provide('ol.geom.Polygon');
-
-goog.require('goog.array');
-goog.require('goog.asserts');
-goog.require('goog.math');
-goog.require('ol.extent');
-goog.require('ol.geom.GeometryLayout');
-goog.require('ol.geom.GeometryType');
-goog.require('ol.geom.LinearRing');
-goog.require('ol.geom.Point');
-goog.require('ol.geom.SimpleGeometry');
-goog.require('ol.geom.flat.area');
-goog.require('ol.geom.flat.closest');
-goog.require('ol.geom.flat.contains');
-goog.require('ol.geom.flat.deflate');
-goog.require('ol.geom.flat.inflate');
-goog.require('ol.geom.flat.interiorpoint');
-goog.require('ol.geom.flat.intersectsextent');
-goog.require('ol.geom.flat.orient');
-goog.require('ol.geom.flat.simplify');
-
-
-
-/**
- * @classdesc
- * Polygon geometry.
- *
- * @constructor
- * @extends {ol.geom.SimpleGeometry}
- * @param {Array.<Array.<ol.Coordinate>>} coordinates Coordinates.
- * @param {ol.geom.GeometryLayout=} opt_layout Layout.
- * @api stable
- */
-ol.geom.Polygon = function(coordinates, opt_layout) {
-
-  goog.base(this);
-
-  /**
-   * @type {Array.<number>}
-   * @private
-   */
-  this.ends_ = [];
-
-  /**
-   * @private
-   * @type {number}
-   */
-  this.flatInteriorPointRevision_ = -1;
-
-  /**
-   * @private
-   * @type {ol.Coordinate}
-   */
-  this.flatInteriorPoint_ = null;
-
-  /**
-   * @private
-   * @type {number}
-   */
-  this.maxDelta_ = -1;
-
-  /**
-   * @private
-   * @type {number}
-   */
-  this.maxDeltaRevision_ = -1;
-
-  /**
-   * @private
-   * @type {number}
-   */
-  this.orientedRevision_ = -1;
-
-  /**
-   * @private
-   * @type {Array.<number>}
-   */
-  this.orientedFlatCoordinates_ = null;
-
-  this.setCoordinates(coordinates,
-      /** @type {ol.geom.GeometryLayout|undefined} */ (opt_layout));
-
-};
-goog.inherits(ol.geom.Polygon, ol.geom.SimpleGeometry);
-
-
-/**
- * Append the passed linear ring to this polygon.
- * @param {ol.geom.LinearRing} linearRing Linear ring.
- * @api stable
- */
-ol.geom.Polygon.prototype.appendLinearRing = function(linearRing) {
-  goog.asserts.assert(linearRing.getLayout() == this.layout,
-      'layout of linearRing should match layout');
-  if (goog.isNull(this.flatCoordinates)) {
-    this.flatCoordinates = linearRing.getFlatCoordinates().slice();
-  } else {
-    goog.array.extend(this.flatCoordinates, linearRing.getFlatCoordinates());
-  }
-  this.ends_.push(this.flatCoordinates.length);
-  this.changed();
-};
-
-
-/**
- * Make a complete copy of the geometry.
- * @return {!ol.geom.Polygon} Clone.
- * @api stable
- */
-ol.geom.Polygon.prototype.clone = function() {
-  var polygon = new ol.geom.Polygon(null);
-  polygon.setFlatCoordinates(
-      this.layout, this.flatCoordinates.slice(), this.ends_.slice());
-  return polygon;
-};
-
-
-/**
- * @inheritDoc
- */
-ol.geom.Polygon.prototype.closestPointXY =
-    function(x, y, closestPoint, minSquaredDistance) {
-  if (minSquaredDistance <
-      ol.extent.closestSquaredDistanceXY(this.getExtent(), x, y)) {
-    return minSquaredDistance;
-  }
-  if (this.maxDeltaRevision_ != this.getRevision()) {
-    this.maxDelta_ = Math.sqrt(ol.geom.flat.closest.getsMaxSquaredDelta(
-        this.flatCoordinates, 0, this.ends_, this.stride, 0));
-    this.maxDeltaRevision_ = this.getRevision();
-  }
-  return ol.geom.flat.closest.getsClosestPoint(
-      this.flatCoordinates, 0, this.ends_, this.stride,
-      this.maxDelta_, true, x, y, closestPoint, minSquaredDistance);
-};
-
-
-/**
- * @inheritDoc
- */
-ol.geom.Polygon.prototype.containsXY = function(x, y) {
-  return ol.geom.flat.contains.linearRingsContainsXY(
-      this.getOrientedFlatCoordinates(), 0, this.ends_, this.stride, x, y);
-};
-
-
-/**
- * Return the area of the polygon on projected plane.
- * @return {number} Area (on projected plane).
- * @api stable
- */
-ol.geom.Polygon.prototype.getArea = function() {
-  return ol.geom.flat.area.linearRings(
-      this.getOrientedFlatCoordinates(), 0, this.ends_, this.stride);
-};
-
-
-/**
- * Get the coordinate array for this geometry.  This array has the structure
- * of a GeoJSON coordinate array for polygons.
- *
- * @param {boolean=} opt_right Orient coordinates according to the right-hand
- *     rule (counter-clockwise for exterior and clockwise for interior rings).
- *     If `false`, coordinates will be oriented according to the left-hand rule
- *     (clockwise for exterior and counter-clockwise for interior rings).
- *     By default, coordinate orientation will depend on how the geometry was
- *     constructed.
- * @return {Array.<Array.<ol.Coordinate>>} Coordinates.
- * @api stable
- */
-ol.geom.Polygon.prototype.getCoordinates = function(opt_right) {
-  var flatCoordinates;
-  if (goog.isDef(opt_right)) {
-    flatCoordinates = this.getOrientedFlatCoordinates().slice();
-    ol.geom.flat.orient.orientLinearRings(
-        flatCoordinates, 0, this.ends_, this.stride, opt_right);
-  } else {
-    flatCoordinates = this.flatCoordinates;
-  }
-
-  return ol.geom.flat.inflate.coordinatess(
-      flatCoordinates, 0, this.ends_, this.stride);
-};
-
-
-/**
- * @return {Array.<number>} Ends.
- */
-ol.geom.Polygon.prototype.getEnds = function() {
-  return this.ends_;
-};
-
-
-/**
- * @return {Array.<number>} Interior point.
- */
-ol.geom.Polygon.prototype.getFlatInteriorPoint = function() {
-  if (this.flatInteriorPointRevision_ != this.getRevision()) {
-    var flatCenter = ol.extent.getCenter(this.getExtent());
-    this.flatInteriorPoint_ = ol.geom.flat.interiorpoint.linearRings(
-        this.getOrientedFlatCoordinates(), 0, this.ends_, this.stride,
-        flatCenter, 0);
-    this.flatInteriorPointRevision_ = this.getRevision();
-  }
-  return this.flatInteriorPoint_;
-};
-
-
-/**
- * Return an interior point of the polygon.
- * @return {ol.geom.Point} Interior point.
- * @api stable
- */
-ol.geom.Polygon.prototype.getInteriorPoint = function() {
-  return new ol.geom.Point(this.getFlatInteriorPoint());
-};
-
-
-/**
- * Return the number of rings of the polygon,  this includes the exterior
- * ring and any interior rings.
- *
- * @return {number} Number of rings.
- * @api
- */
-ol.geom.Polygon.prototype.getLinearRingCount = function() {
-  return this.ends_.length;
-};
-
-
-/**
- * Return the Nth linear ring of the polygon geometry. Return `null` if the
- * given index is out of range.
- * The exterior linear ring is available at index `0` and the interior rings
- * at index `1` and beyond.
- *
- * @param {number} index Index.
- * @return {ol.geom.LinearRing} Linear ring.
- * @api stable
- */
-ol.geom.Polygon.prototype.getLinearRing = function(index) {
-  goog.asserts.assert(0 <= index && index < this.ends_.length,
-      'index should be in between 0 and and length of this.ends_');
-  if (index < 0 || this.ends_.length <= index) {
-    return null;
-  }
-  var linearRing = new ol.geom.LinearRing(null);
-  linearRing.setFlatCoordinates(this.layout, this.flatCoordinates.slice(
-      index === 0 ? 0 : this.ends_[index - 1], this.ends_[index]));
-  return linearRing;
-};
-
-
-/**
- * Return the linear rings of the polygon.
- * @return {Array.<ol.geom.LinearRing>} Linear rings.
- * @api stable
- */
-ol.geom.Polygon.prototype.getLinearRings = function() {
-  var layout = this.layout;
-  var flatCoordinates = this.flatCoordinates;
-  var ends = this.ends_;
-  var linearRings = [];
-  var offset = 0;
-  var i, ii;
-  for (i = 0, ii = ends.length; i < ii; ++i) {
-    var end = ends[i];
-    var linearRing = new ol.geom.LinearRing(null);
-    linearRing.setFlatCoordinates(layout, flatCoordinates.slice(offset, end));
-    linearRings.push(linearRing);
-    offset = end;
-  }
-  return linearRings;
-};
-
-
-/**
- * @return {Array.<number>} Oriented flat coordinates.
- */
-ol.geom.Polygon.prototype.getOrientedFlatCoordinates = function() {
-  if (this.orientedRevision_ != this.getRevision()) {
-    var flatCoordinates = this.flatCoordinates;
-    if (ol.geom.flat.orient.linearRingsAreOriented(
-        flatCoordinates, 0, this.ends_, this.stride)) {
-      this.orientedFlatCoordinates_ = flatCoordinates;
-    } else {
-      this.orientedFlatCoordinates_ = flatCoordinates.slice();
-      this.orientedFlatCoordinates_.length =
-          ol.geom.flat.orient.orientLinearRings(
-              this.orientedFlatCoordinates_, 0, this.ends_, this.stride);
-    }
-    this.orientedRevision_ = this.getRevision();
-  }
-  return this.orientedFlatCoordinates_;
-};
-
-
-/**
- * @inheritDoc
- */
-ol.geom.Polygon.prototype.getSimplifiedGeometryInternal =
-    function(squaredTolerance) {
-  var simplifiedFlatCoordinates = [];
-  var simplifiedEnds = [];
-  simplifiedFlatCoordinates.length = ol.geom.flat.simplify.quantizes(
-      this.flatCoordinates, 0, this.ends_, this.stride,
-      Math.sqrt(squaredTolerance),
-      simplifiedFlatCoordinates, 0, simplifiedEnds);
-  var simplifiedPolygon = new ol.geom.Polygon(null);
-  simplifiedPolygon.setFlatCoordinates(
-      ol.geom.GeometryLayout.XY, simplifiedFlatCoordinates, simplifiedEnds);
-  return simplifiedPolygon;
-};
-
-
-/**
- * @inheritDoc
- * @api stable
- */
-ol.geom.Polygon.prototype.getType = function() {
-  return ol.geom.GeometryType.POLYGON;
-};
-
-
-/**
- * @inheritDoc
- * @api stable
- */
-ol.geom.Polygon.prototype.intersectsExtent = function(extent) {
-  return ol.geom.flat.intersectsextent.linearRings(
-      this.getOrientedFlatCoordinates(), 0, this.ends_, this.stride, extent);
-};
-
-
-/**
- * Set the coordinates of the polygon.
- * @param {Array.<Array.<ol.Coordinate>>} coordinates Coordinates.
- * @param {ol.geom.GeometryLayout=} opt_layout Layout.
- * @api stable
- */
-ol.geom.Polygon.prototype.setCoordinates = function(coordinates, opt_layout) {
-  if (goog.isNull(coordinates)) {
-    this.setFlatCoordinates(ol.geom.GeometryLayout.XY, null, this.ends_);
-  } else {
-    this.setLayout(opt_layout, coordinates, 2);
-    if (goog.isNull(this.flatCoordinates)) {
-      this.flatCoordinates = [];
-    }
-    var ends = ol.geom.flat.deflate.coordinatess(
-        this.flatCoordinates, 0, coordinates, this.stride, this.ends_);
-    this.flatCoordinates.length = ends.length === 0 ? 0 : ends[ends.length - 1];
-    this.changed();
-  }
-};
-
-
-/**
- * @param {ol.geom.GeometryLayout} layout Layout.
- * @param {Array.<number>} flatCoordinates Flat coordinates.
- * @param {Array.<number>} ends Ends.
- */
-ol.geom.Polygon.prototype.setFlatCoordinates =
-    function(layout, flatCoordinates, ends) {
-  if (goog.isNull(flatCoordinates)) {
-    goog.asserts.assert(!goog.isNull(ends) && ends.length === 0,
-        'ends cannot be null and should be an empty array');
-  } else if (ends.length === 0) {
-    goog.asserts.assert(flatCoordinates.length === 0,
-        'flatCoordinates should be an empty array');
-  } else {
-    goog.asserts.assert(flatCoordinates.length == ends[ends.length - 1],
-        'the length of flatCoordinates should be the last entry of ends');
-  }
-  this.setFlatCoordinatesInternal(layout, flatCoordinates);
-  this.ends_ = ends;
-  this.changed();
-};
-
-
-/**
- * Create an approximation of a circle on the surface of a sphere.
- * @param {ol.Sphere} sphere The sphere.
- * @param {ol.Coordinate} center Center (`[lon, lat]` in degrees).
- * @param {number} radius The great-circle distance from the center to
- *     the polygon vertices.
- * @param {number=} opt_n Optional number of vertices for the resulting
- *     polygon. Default is `32`.
- * @return {ol.geom.Polygon} The "circular" polygon.
- * @api stable
- */
-ol.geom.Polygon.circular = function(sphere, center, radius, opt_n) {
-  var n = goog.isDef(opt_n) ? opt_n : 32;
-  /** @type {Array.<number>} */
-  var flatCoordinates = [];
-  var i;
-  for (i = 0; i < n; ++i) {
-    goog.array.extend(
-        flatCoordinates, sphere.offset(center, radius, 2 * Math.PI * i / n));
-  }
-  flatCoordinates.push(flatCoordinates[0], flatCoordinates[1]);
-  var polygon = new ol.geom.Polygon(null);
-  polygon.setFlatCoordinates(
-      ol.geom.GeometryLayout.XY, flatCoordinates, [flatCoordinates.length]);
-  return polygon;
-};
-
-
-/**
- * Create a polygon from an extent. The layout used is `XY`.
- * @param {ol.Extent} extent The extent.
- * @return {ol.geom.Polygon} The polygon.
- * @api
- */
-ol.geom.Polygon.fromExtent = function(extent) {
-  var minX = extent[0];
-  var minY = extent[1];
-  var maxX = extent[2];
-  var maxY = extent[3];
-  var flatCoordinates =
-      [minX, minY, minX, maxY, maxX, maxY, maxX, minY, minX, minY];
-  var polygon = new ol.geom.Polygon(null);
-  polygon.setFlatCoordinates(
-      ol.geom.GeometryLayout.XY, flatCoordinates, [flatCoordinates.length]);
-  return polygon;
-};
-
-
-/**
- * Create a regular polygon from a circle.
- * @param {ol.geom.Circle} circle Circle geometry.
- * @param {number=} opt_sides Number of sides of the polygon. Default is 32.
- * @param {number=} opt_angle Start angle for the first vertex of the polygon in
- *     radians. Default is 0.
- * @return {ol.geom.Polygon} Polygon geometry.
- * @api
- */
-ol.geom.Polygon.fromCircle = function(circle, opt_sides, opt_angle) {
-  var sides = goog.isDef(opt_sides) ? opt_sides : 32;
-  var stride = circle.getStride();
-  var layout = circle.getLayout();
-  var polygon = new ol.geom.Polygon(null, layout);
-  var flatCoordinates = goog.array.repeat(0, stride * (sides + 1));
-  var ends = [flatCoordinates.length];
-  polygon.setFlatCoordinates(layout, flatCoordinates, ends);
-  ol.geom.Polygon.makeRegular(
-      polygon, circle.getCenter(), circle.getRadius(), opt_angle);
-  return polygon;
-};
-
-
-/**
- * Modify the coordinates of a polygon to make it a regular polygon.
- * @param {ol.geom.Polygon} polygon Polygon geometry.
- * @param {ol.Coordinate} center Center of the regular polygon.
- * @param {number} radius Radius of the regular polygon.
- * @param {number=} opt_angle Start angle for the first vertex of the polygon in
- *     radians. Default is 0.
- */
-ol.geom.Polygon.makeRegular = function(polygon, center, radius, opt_angle) {
-  var flatCoordinates = polygon.getFlatCoordinates();
-  var layout = polygon.getLayout();
-  var stride = polygon.getStride();
-  var ends = polygon.getEnds();
-  goog.asserts.assert(ends.length === 1, 'only 1 ring is supported');
-  var sides = flatCoordinates.length / stride - 1;
-  var startAngle = goog.isDef(opt_angle) ? opt_angle : 0;
-  var angle, coord, offset;
-  for (var i = 0; i <= sides; ++i) {
-    offset = i * stride;
-    angle = startAngle + (goog.math.modulo(i, sides) * 2 * Math.PI / sides);
-    flatCoordinates[offset] = center[0] + (radius * Math.cos(angle));
-    flatCoordinates[offset + 1] = center[1] + (radius * Math.sin(angle));
-  }
-  polygon.setFlatCoordinates(layout, flatCoordinates, ends);
-};
 
 // FIXME add rotation
 
@@ -63427,6 +63424,7 @@ ol.renderer.vector.GEOMETRY_RENDERERS_ = {
 
 goog.provide('ol.ImageCanvas');
 
+goog.require('goog.asserts');
 goog.require('ol.ImageBase');
 goog.require('ol.ImageState');
 
@@ -63440,12 +63438,23 @@ goog.require('ol.ImageState');
  * @param {number} pixelRatio Pixel ratio.
  * @param {Array.<ol.Attribution>} attributions Attributions.
  * @param {HTMLCanvasElement} canvas Canvas.
+ * @param {ol.ImageCanvasLoader=} opt_loader Optional loader function to
+ *     support asynchronous canvas drawing.
  */
 ol.ImageCanvas = function(extent, resolution, pixelRatio, attributions,
-    canvas) {
+    canvas, opt_loader) {
 
-  goog.base(this, extent, resolution, pixelRatio, ol.ImageState.LOADED,
-      attributions);
+  /**
+   * Optional canvas loader function.
+   * @type {?ol.ImageCanvasLoader}
+   * @private
+   */
+  this.loader_ = goog.isDef(opt_loader) ? opt_loader : null;
+
+  var state = goog.isDef(opt_loader) ?
+      ol.ImageState.IDLE : ol.ImageState.LOADED;
+
+  goog.base(this, extent, resolution, pixelRatio, state, attributions);
 
   /**
    * @private
@@ -63453,8 +63462,52 @@ ol.ImageCanvas = function(extent, resolution, pixelRatio, attributions,
    */
   this.canvas_ = canvas;
 
+  /**
+   * @private
+   * @type {Error}
+   */
+  this.error_ = null;
+
 };
 goog.inherits(ol.ImageCanvas, ol.ImageBase);
+
+
+/**
+ * Get any error associated with asynchronous rendering.
+ * @return {Error} Any error that occurred during rendering.
+ */
+ol.ImageCanvas.prototype.getError = function() {
+  return this.error_;
+};
+
+
+/**
+ * Handle async drawing complete.
+ * @param {Error} err Any error during drawing.
+ * @private
+ */
+ol.ImageCanvas.prototype.handleLoad_ = function(err) {
+  if (err) {
+    this.error_ = err;
+    this.state = ol.ImageState.ERROR;
+  } else {
+    this.state = ol.ImageState.LOADED;
+  }
+  this.changed();
+};
+
+
+/**
+ * Trigger drawing on canvas.
+ */
+ol.ImageCanvas.prototype.load = function() {
+  if (this.state == ol.ImageState.IDLE) {
+    goog.asserts.assert(!goog.isNull(this.loader_));
+    this.state = ol.ImageState.LOADING;
+    this.changed();
+    this.loader_(goog.bind(this.handleLoad_, this));
+  }
+};
 
 
 /**
@@ -63463,6 +63516,17 @@ goog.inherits(ol.ImageCanvas, ol.ImageBase);
 ol.ImageCanvas.prototype.getImage = function(opt_context) {
   return this.canvas_;
 };
+
+
+/**
+ * A function that is called to trigger asynchronous canvas drawing.  It is
+ * called with a "done" callback that should be called when drawing is done.
+ * If any error occurs during drawing, the "done" callback should be called with
+ * that error.
+ *
+ * @typedef {function(function(Error))}
+ */
+ol.ImageCanvasLoader;
 
 goog.provide('ol.source.Image');
 
@@ -63795,8 +63859,6 @@ goog.require('ol.style.Style');
  *
  * @constructor
  * @extends {ol.Object}
- * @fires change Triggered when the id, the geometry or the style of the
- *     feature changes.
  * @param {ol.geom.Geometry|Object.<string, *>=} opt_geometryOrProperties
  *     You may pass a Geometry object directly, or an object literal
  *     containing properties.  If you pass an object literal, you may
@@ -63898,6 +63960,7 @@ ol.Feature.prototype.getGeometry = function() {
 /**
  * @return {number|string|undefined} Id.
  * @api stable
+ * @observable
  */
 ol.Feature.prototype.getId = function() {
   return this.id_;
@@ -63922,6 +63985,7 @@ ol.Feature.prototype.getGeometryName = function() {
  * @return {ol.style.Style|Array.<ol.style.Style>|
  *     ol.FeatureStyleFunction} The feature style.
  * @api stable
+ * @observable
  */
 ol.Feature.prototype.getStyle = function() {
   return this.style_;
@@ -63983,6 +64047,7 @@ ol.Feature.prototype.setGeometry = function(geometry) {
  * @param {ol.style.Style|Array.<ol.style.Style>|
  *     ol.FeatureStyleFunction} style Style for this feature.
  * @api stable
+ * @observable
  */
 ol.Feature.prototype.setStyle = function(style) {
   this.style_ = style;
@@ -63999,6 +64064,7 @@ ol.Feature.prototype.setStyle = function(style) {
  * method.
  * @param {number|string|undefined} id The feature id.
  * @api stable
+ * @observable
  */
 ol.Feature.prototype.setId = function(id) {
   this.id_ = id;
@@ -73307,6 +73373,8 @@ ol.renderer.canvas.VectorLayer.prototype.composeFrame =
             skippedFeatureUids);
         startX -= worldWidth;
       }
+      // restore original transform for render and compose events
+      transform = this.getTransform(frameState, 0);
     }
 
     if (replayContext != context) {
@@ -73408,9 +73476,15 @@ ol.renderer.canvas.VectorLayer.prototype.prepareFrame =
 
   if (vectorSource.getWrapX() && viewState.projection.canWrapX() &&
       !ol.extent.containsExtent(projectionExtent, frameState.extent)) {
-    // do not clip when the view crosses the -180° or 180° meridians
-    extent[0] = projectionExtent[0];
-    extent[2] = projectionExtent[2];
+    // For the replay group, we need an extent that intersects the real world
+    // (-180° to +180°). To support geometries in a coordinate range from -540°
+    // to +540°, we add at least 1 world width on each side of the projection
+    // extent. If the viewport is wider than the world, we need to add half of
+    // the viewport width to make sure we cover the whole viewport.
+    var worldWidth = ol.extent.getWidth(projectionExtent);
+    var buffer = Math.max(ol.extent.getWidth(extent) / 2, worldWidth);
+    extent[0] = projectionExtent[0] - buffer;
+    extent[2] = projectionExtent[2] + buffer;
   }
 
   if (!this.dirty_ &&
@@ -84481,7 +84555,7 @@ ol.control.OverviewMap.prototype.resetExtent_ = function() {
       ol.OVERVIEWMAP_MAX_RATIO / ol.OVERVIEWMAP_MIN_RATIO) / Math.LN2;
   var ratio = 1 / (Math.pow(2, steps / 2) * ol.OVERVIEWMAP_MIN_RATIO);
   ol.extent.scaleFromCenter(extent, ratio);
-  ovview.fitExtent(extent, ovmapSize);
+  ovview.fit(extent, ovmapSize);
 };
 
 
@@ -88458,7 +88532,7 @@ ol.control.ZoomToExtent.prototype.handleZoomToExtent_ = function() {
       view.getProjection().getExtent() : this.extent_;
   var size = map.getSize();
   goog.asserts.assert(goog.isDef(size), 'size should be defined');
-  view.fitExtent(extent, size);
+  view.fit(extent, size);
 };
 
 goog.provide('ol.DeviceOrientation');
@@ -91032,10 +91106,11 @@ ol.format.GMLBase.prototype.readFeatureElement = function(node, objectStack) {
       n = n.nextElementSibling) {
     var localName = ol.xml.getLocalName(n);
     // Assume attribute elements have one child node and that the child
-    // is a text node.  Otherwise assume it is a geometry node.
+    // is a text or CDATA node (to be treated as text).
+    // Otherwise assume it is a geometry node.
     if (n.childNodes.length === 0 ||
         (n.childNodes.length === 1 &&
-        n.firstChild.nodeType === 3)) {
+        (n.firstChild.nodeType === 3 || n.firstChild.nodeType === 4))) {
       var value = ol.xml.getAllTextContent(n, false);
       if (goog.string.isEmpty(value)) {
         value = undefined;
@@ -108730,6 +108805,7 @@ goog.provide('ol.interaction.Modify');
 goog.require('goog.array');
 goog.require('goog.asserts');
 goog.require('goog.events');
+goog.require('goog.events.Event');
 goog.require('goog.functions');
 goog.require('ol.Collection');
 goog.require('ol.CollectionEventType');
@@ -108754,6 +108830,60 @@ goog.require('ol.style.Style');
 
 
 /**
+ * @enum {string}
+ */
+ol.ModifyEventType = {
+  /**
+   * Triggered upon feature modification start
+   * @event ol.ModifyEvent#modifystart
+   * @api
+   */
+  MODIFYSTART: 'modifystart',
+  /**
+   * Triggered upon feature modification end
+   * @event ol.ModifyEvent#modifyend
+   * @api
+   */
+  MODIFYEND: 'modifyend'
+};
+
+
+
+/**
+ * @classdesc
+ * Events emitted by {@link ol.interaction.Modify} instances are instances of
+ * this type.
+ *
+ * @constructor
+ * @extends {goog.events.Event}
+ * @implements {oli.ModifyEvent}
+ * @param {ol.ModifyEventType} type Type.
+ * @param {ol.Collection.<ol.Feature>} features The features modified.
+ * @param {ol.MapBrowserPointerEvent} mapBrowserPointerEvent Associated
+ *     {@link ol.MapBrowserPointerEvent}.
+ */
+ol.ModifyEvent = function(type, features, mapBrowserPointerEvent) {
+
+  goog.base(this, type);
+
+  /**
+   * The features being modified.
+   * @type {ol.Collection.<ol.Feature>}
+   * @api
+   */
+  this.features = features;
+
+  /**
+   * Associated {@link ol.MapBrowserPointerEvent}.
+   * @type {ol.MapBrowserPointerEvent}
+   * @api
+   */
+  this.mapBrowserPointerEvent = mapBrowserPointerEvent;
+};
+goog.inherits(ol.ModifyEvent, goog.events.Event);
+
+
+/**
  * @typedef {{depth: (Array.<number>|undefined),
  *            feature: ol.Feature,
  *            geometry: ol.geom.SimpleGeometry,
@@ -108771,7 +108901,8 @@ ol.interaction.SegmentDataType;
  * @constructor
  * @extends {ol.interaction.Pointer}
  * @param {olx.interaction.ModifyOptions} options Options.
- * @api stable
+ * @fires ol.ModifyEvent
+ * @api
  */
 ol.interaction.Modify = function(options) {
 
@@ -108813,6 +108944,14 @@ ol.interaction.Modify = function(options) {
   this.lastPixel_ = [0, 0];
 
   /**
+   * Keep track of the last inserted pixel location to avoid
+   * unintentional deletion.
+   * @type {ol.Pixel}
+   * @private
+   */
+  this.lastNewVertexPixel_ = [NaN, NaN];
+
+  /**
    * Segment RTree for each layer
    * @type {Object.<*, ol.structs.RBush>}
    * @private
@@ -108839,7 +108978,7 @@ ol.interaction.Modify = function(options) {
   this.dragSegments_ = null;
 
   /**
-   * Draw overlay where are sketch features are drawn.
+   * Draw overlay where sketch features are drawn.
    * @type {ol.layer.Vector}
    * @private
    */
@@ -109193,6 +109332,8 @@ ol.interaction.Modify.handleDownEvent_ = function(evt) {
     for (i = insertVertices.length - 1; i >= 0; --i) {
       this.insertVertex_.apply(this, insertVertices[i]);
     }
+    this.dispatchEvent(new ol.ModifyEvent(ol.ModifyEventType.MODIFYSTART,
+        this.features_, evt));
   }
   return !goog.isNull(this.vertexFeature_);
 };
@@ -109264,6 +109405,8 @@ ol.interaction.Modify.handleUpEvent_ = function(evt) {
     this.rBush_.update(ol.extent.boundingExtent(segmentData.segment),
         segmentData);
   }
+  this.dispatchEvent(new ol.ModifyEvent(ol.ModifyEventType.MODIFYEND,
+      this.features_, evt));
   return false;
 };
 
@@ -109285,10 +109428,15 @@ ol.interaction.Modify.handleEvent = function(mapBrowserEvent) {
   }
   if (!goog.isNull(this.vertexFeature_) &&
       this.deleteCondition_(mapBrowserEvent)) {
-    var geometry = this.vertexFeature_.getGeometry();
-    goog.asserts.assertInstanceof(geometry, ol.geom.Point,
-        'geometry should be an ol.geom.Point');
-    handled = this.removeVertex_();
+    if (!(this.lastNewVertexPixel_[0] === this.lastPixel_[0] &&
+        this.lastNewVertexPixel_[1] === this.lastPixel_[1])) {
+      var geometry = this.vertexFeature_.getGeometry();
+      goog.asserts.assertInstanceof(geometry, ol.geom.Point,
+          'geometry should be an ol.geom.Point');
+      handled = this.removeVertex_();
+    } else {
+      handled = true;
+    }
   }
   return ol.interaction.Pointer.handleEvent.call(this, mapBrowserEvent) &&
       !handled;
@@ -109443,6 +109591,7 @@ ol.interaction.Modify.prototype.insertVertex_ = function(segmentData, vertex) {
   rTree.insert(ol.extent.boundingExtent(newSegmentData2.segment),
       newSegmentData2);
   this.dragSegments_.push([newSegmentData2, 0]);
+  this.lastNewVertexPixel_ = this.lastPixel_;
 };
 
 
@@ -113272,6 +113421,294 @@ ol.source.MapQuest.prototype.getLayer = function() {
   return this.layer_;
 };
 
+goog.provide('ol.ext.pixelworks');
+/** @typedef {function(*)} */
+ol.ext.pixelworks;
+(function() {
+var exports = {};
+var module = {exports: exports};
+/**
+ * @fileoverview
+ * @suppress {accessControls, ambiguousFunctionDecl, checkDebuggerStatement, checkRegExp, checkTypes, checkVars, const, constantProperty, deprecated, duplicate, es5Strict, fileoverviewTags, missingProperties, nonStandardJsDocs, strictModuleDepCheck, suspiciousCode, undefinedNames, undefinedVars, unknownDefines, uselessCode, visibility}
+ */
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.pixelworks = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+var Processor = require('./processor');
+
+exports.Processor = Processor;
+
+},{"./processor":2}],2:[function(require,module,exports){
+/* eslint-disable dot-notation */
+
+/**
+ * Create a function for running operations.
+ * @param {Array.<function(Array, Object):Array>} operations The operations.
+ * @return {function(Object):ArrayBuffer} A function that takes an object with
+ * buffers, meta, imageOps, width, and height properties and returns an array
+ * buffer.
+ */
+function createMinion(operations) {
+  var numOps = operations.length;
+  return function(data) {
+    // bracket notation for minification support
+    var buffers = data['buffers'];
+    var meta = data['meta'];
+    var imageOps = data['imageOps'];
+    var width = data['width'];
+    var height = data['height'];
+
+    var numBuffers = buffers.length;
+    var numBytes = buffers[0].byteLength;
+    var output, b, k;
+
+    if (imageOps) {
+      var images = new Array(numBuffers);
+      for (b = 0; b < numBuffers; ++b) {
+        images[b] = new ImageData(
+            new Uint8ClampedArray(buffers[b]), width, height);
+      }
+      for (k = 0; k < numOps; ++k) {
+        images = operations[k](images, meta);
+      }
+      output = images[0].data;
+    } else {
+      output = new Uint8ClampedArray(numBytes);
+      var arrays = new Array(numBuffers);
+      var pixels = new Array(numBuffers);
+      for (b = 0; b < numBuffers; ++b) {
+        arrays[b] = new Uint8ClampedArray(buffers[b]);
+        pixels[b] = [0, 0, 0, 0];
+      }
+      for (var i = 0; i < numBytes; i += 4) {
+        for (var j = 0; j < numBuffers; ++j) {
+          var array = arrays[j];
+          pixels[j][0] = array[i];
+          pixels[j][1] = array[i + 1];
+          pixels[j][2] = array[i + 2];
+          pixels[j][3] = array[i + 3];
+        }
+        for (k = 0; k < numOps; ++k) {
+          pixels = operations[k](pixels, meta);
+        }
+        var pixel = pixels[0];
+        output[i] = pixel[0];
+        output[i + 1] = pixel[1];
+        output[i + 2] = pixel[2];
+        output[i + 3] = pixel[3];
+      }
+    }
+    return output.buffer;
+  };
+}
+
+/**
+ * Create a worker for running operations.
+ * @param {Array.<function(Array, Object):Array>} operations Array of
+ *     operations.
+ * @param {function(Object)} onMessage Called with a message event.
+ * @return {Worker} The worker.
+ */
+function createWorker(operations, onMessage) {
+  var lines = [
+    'var ops = [' + operations.map(String).join(',') + '];',
+    'var minion = (' + createMinion.toString() + ')(ops);',
+    'self.addEventListener("message", function(event) {',
+      'var data = event.data;',
+      'var buffer = minion(data);',
+      'self.postMessage({buffer: buffer, meta: data.meta}, [buffer]);',
+    '});'
+  ];
+  var blob = new Blob(lines, {type: 'text/javascript'});
+  var source = URL.createObjectURL(blob);
+  var worker = new Worker(source);
+  worker.addEventListener('message', onMessage);
+  return worker;
+}
+
+/**
+ * Create a faux worker for running operations.
+ * @param {Array.<function(Array, Object):Array>} operations Array of
+ *     operations.
+ * @param {function(Object)} onMessage Called with a message event.
+ * @return {Object} The faux worker.
+ */
+function createFauxWorker(operations, onMessage) {
+  var minion = createMinion(operations);
+  return {
+    postMessage: function(data) {
+      setTimeout(function() {
+        onMessage({data: {buffer: minion(data), meta: data.meta}});
+      }, 0);
+    }
+  };
+}
+
+/**
+ * A processor runs pixel or image operations in workers.
+ * @param {Object} config Configuration.
+ */
+function Processor(config) {
+  this._imageOps = !!config.imageOps;
+  var threads;
+  if (config.threads === 0) {
+    threads = 0;
+  } else if (this._imageOps) {
+    threads = 1;
+  } else {
+    threads = config.threads || 1;
+  }
+  var workers = [];
+  if (threads) {
+    for (var i = 0; i < threads; ++i) {
+      workers[i] = createWorker(config.operations,
+          this._onWorkerMessage.bind(this, i));
+    }
+  } else {
+    workers[0] = createFauxWorker(config.operations,
+        this._onWorkerMessage.bind(this, 0));
+  }
+  this._workers = workers;
+  this._queue = [];
+  this._maxQueueLength = config.queue || Infinity;
+  this._running = 0;
+  this._dataLookup = {};
+  this._job = null;
+}
+
+/**
+ * Run operations on input data.
+ * @param {Array.<Array|ImageData>} inputs Array of pixels or image data
+ *     (depending on the operation type).
+ * @param {Object} meta A user data object.  This is passed to all operations
+ *     and must be serializable.
+ * @param {function(Error, ImageData, Object)} callback Called when work
+ *     completes.  The first argument is any error.  The second is the ImageData
+ *     generated by operations.  The third is the user data object.
+ */
+Processor.prototype.process = function(inputs, meta, callback) {
+  this._enqueue({
+    inputs: inputs,
+    meta: meta,
+    callback: callback
+  });
+  this._dispatch();
+};
+
+/**
+ * Stop responding to any completed work and destroy the processor.
+ */
+Processor.prototype.destroy = function() {
+  for (var key in this) {
+    this[key] = null;
+  }
+  this._destroyed = true;
+};
+
+/**
+ * Add a job to the queue.
+ * @param {Object} job The job.
+ */
+Processor.prototype._enqueue = function(job) {
+  this._queue.push(job);
+  while (this._queue.length > this._maxQueueLength) {
+    this._queue.shift().callback(null, null);
+  }
+};
+
+/**
+ * Dispatch a job.
+ */
+Processor.prototype._dispatch = function() {
+  if (this._running === 0 && this._queue.length > 0) {
+    var job = this._job = this._queue.shift();
+    var width = job.inputs[0].width;
+    var height = job.inputs[0].height;
+    var buffers = job.inputs.map(function(input) {
+      return input.data.buffer;
+    });
+    var threads = this._workers.length;
+    this._running = threads;
+    if (threads === 1) {
+      this._workers[0].postMessage({
+        'buffers': buffers,
+        'meta': job.meta,
+        'imageOps': this._imageOps,
+        'width': width,
+        'height': height
+      }, buffers);
+    } else {
+      var length = job.inputs[0].data.length;
+      var segmentLength = 4 * Math.ceil(length / 4 / threads);
+      for (var i = 0; i < threads; ++i) {
+        var offset = i * segmentLength;
+        var slices = [];
+        for (var j = 0, jj = buffers.length; j < jj; ++j) {
+          slices.push(buffers[i].slice(offset, offset + segmentLength));
+        }
+        this._workers[i].postMessage({
+          'buffers': slices,
+          'meta': job.meta,
+          'imageOps': this._imageOps,
+          'width': width,
+          'height': height
+        }, slices);
+      }
+    }
+  }
+};
+
+/**
+ * Handle messages from the worker.
+ * @param {number} index The worker index.
+ * @param {Object} event The message event.
+ */
+Processor.prototype._onWorkerMessage = function(index, event) {
+  if (this._destroyed) {
+    return;
+  }
+  this._dataLookup[index] = event.data;
+  --this._running;
+  if (this._running === 0) {
+    this._resolveJob();
+  }
+};
+
+/**
+ * Resolve a job.  If there are no more worker threads, the processor callback
+ * will be called.
+ */
+Processor.prototype._resolveJob = function() {
+  var job = this._job;
+  var threads = this._workers.length;
+  var data, meta;
+  if (threads === 1) {
+    data = new Uint8ClampedArray(this._dataLookup[0]['buffer']);
+    meta = this._dataLookup[0]['meta'];
+  } else {
+    var length = job.inputs[0].data.length;
+    data = new Uint8ClampedArray(length);
+    meta = new Array(length);
+    var segmentLength = 4 * Math.ceil(length / 4 / threads);
+    for (var i = 0; i < threads; ++i) {
+      var buffer = this._dataLookup[i]['buffer'];
+      var offset = i * segmentLength;
+      data.set(new Uint8ClampedArray(buffer), offset);
+      meta[i] = this._dataLookup[i]['meta'];
+    }
+  }
+  this._job = null;
+  this._dataLookup = {};
+  job.callback(null,
+      new ImageData(data, job.inputs[0].width, job.inputs[0].height), meta);
+  this._dispatch();
+};
+
+module.exports = Processor;
+
+},{}]},{},[1])(1)
+});
+ol.ext.pixelworks = module.exports;
+})();
+
 goog.provide('ol.source.Raster');
 goog.provide('ol.source.RasterEvent');
 goog.provide('ol.source.RasterEventType');
@@ -113279,10 +113716,12 @@ goog.provide('ol.source.RasterEventType');
 goog.require('goog.asserts');
 goog.require('goog.events.Event');
 goog.require('goog.functions');
+goog.require('goog.object');
 goog.require('goog.vec.Mat4');
 goog.require('ol.ImageCanvas');
 goog.require('ol.TileQueue');
 goog.require('ol.dom');
+goog.require('ol.ext.pixelworks');
 goog.require('ol.extent');
 goog.require('ol.layer.Image');
 goog.require('ol.layer.Tile');
@@ -113311,17 +113750,19 @@ ol.source.Raster = function(options) {
 
   /**
    * @private
-   * @type {Array.<ol.raster.Operation>}
-   */
-  this.operations_ = goog.isDef(options.operations) ?
-      options.operations : [ol.raster.IdentityOp];
-
-  /**
-   * @private
    * @type {ol.raster.OperationType}
    */
   this.operationType_ = goog.isDef(options.operationType) ?
       options.operationType : ol.raster.OperationType.PIXEL;
+
+  var operations = goog.isDef(options.operations) ?
+      options.operations : [ol.raster.IdentityOp];
+
+  /**
+   * @private
+   * @type {*}
+   */
+  this.worker_ = this.createWorker_(operations);
 
   /**
    * @private
@@ -113348,6 +113789,20 @@ ol.source.Raster = function(options) {
   for (var i = 0, ii = layerStatesArray.length; i < ii; ++i) {
     layerStates[goog.getUid(layerStatesArray[i].layer)] = layerStatesArray[i];
   }
+
+  /**
+   * The most recently rendered state.
+   * @type {?ol.source.Raster.RenderedState}
+   * @private
+   */
+  this.renderedState_ = null;
+
+  /**
+   * The most recently rendered image canvas.
+   * @type {ol.ImageCanvas}
+   * @private
+   */
+  this.renderedImageCanvas_ = null;
 
   /**
    * @private
@@ -113388,12 +113843,27 @@ goog.inherits(ol.source.Raster, ol.source.Image);
 
 
 /**
+ * Create a worker.
+ * @param {Array.<ol.raster.Operation>} operations The operations.
+ * @return {*} The worker.
+ * @private
+ */
+ol.source.Raster.prototype.createWorker_ = function(operations) {
+  return new ol.ext.pixelworks.Processor({
+    operations: operations,
+    imageOps: this.operationType_ === ol.raster.OperationType.IMAGE,
+    queue: 1
+  });
+};
+
+
+/**
  * Reset the operations.
  * @param {Array.<ol.raster.Operation>} operations New operations.
  * @api
  */
 ol.source.Raster.prototype.setOperations = function(operations) {
-  this.operations_ = operations;
+  this.worker_ = this.createWorker_(operations);
   this.changed();
 };
 
@@ -113408,7 +113878,12 @@ ol.source.Raster.prototype.setOperations = function(operations) {
  */
 ol.source.Raster.prototype.updateFrameState_ =
     function(extent, resolution, projection) {
-  var frameState = this.frameState_;
+
+  var frameState = /** @type {olx.FrameState} */ (
+      goog.object.clone(this.frameState_));
+
+  frameState.viewState = /** @type {olx.ViewState} */ (
+      goog.object.clone(frameState.viewState));
 
   var center = ol.extent.getCenter(extent);
   var width = Math.round(ol.extent.getWidth(extent) / resolution);
@@ -113428,10 +113903,34 @@ ol.source.Raster.prototype.updateFrameState_ =
 
 
 /**
+ * Determine if the most recently rendered image canvas is dirty.
+ * @param {ol.Extent} extent The requested extent.
+ * @param {number} resolution The requested resolution.
+ * @return {boolean} The image is dirty.
+ * @private
+ */
+ol.source.Raster.prototype.isDirty_ = function(extent, resolution) {
+  var state = this.renderedState_;
+  return !state ||
+      this.getRevision() !== state.revision ||
+      resolution !== state.resolution ||
+      !ol.extent.equals(extent, state.extent);
+};
+
+
+/**
  * @inheritDoc
  */
 ol.source.Raster.prototype.getImage =
     function(extent, resolution, pixelRatio, projection) {
+
+  if (!this.allSourcesReady_()) {
+    return null;
+  }
+
+  if (!this.isDirty_(extent, resolution)) {
+    return this.renderedImageCanvas_;
+  }
 
   var context = this.canvasContext_;
   var canvas = context.canvas;
@@ -113446,10 +113945,18 @@ ol.source.Raster.prototype.getImage =
   }
 
   var frameState = this.updateFrameState_(extent, resolution, projection);
-  this.composeFrame_(frameState);
 
-  var imageCanvas = new ol.ImageCanvas(extent, resolution, 1,
-      this.getAttributions(), canvas);
+  var imageCanvas = new ol.ImageCanvas(
+      extent, resolution, 1, this.getAttributions(), canvas,
+      this.composeFrame_.bind(this, frameState));
+
+  this.renderedImageCanvas_ = imageCanvas;
+
+  this.renderedState_ = {
+    extent: extent,
+    resolution: resolution,
+    revision: this.getRevision()
+  };
 
   return imageCanvas;
 };
@@ -113478,93 +113985,56 @@ ol.source.Raster.prototype.allSourcesReady_ = function() {
  * Compose the frame.  This renders data from all sources, runs pixel-wise
  * operations, and renders the result to the stored canvas context.
  * @param {olx.FrameState} frameState The frame state.
+ * @param {function(Error)} callback Called when composition is complete.
  * @private
  */
-ol.source.Raster.prototype.composeFrame_ = function(frameState) {
-  if (!this.allSourcesReady_()) {
-    return;
-  }
+ol.source.Raster.prototype.composeFrame_ = function(frameState, callback) {
   var len = this.renderers_.length;
   var imageDatas = new Array(len);
-  var pixels = new Array(len);
-
-  var context = this.canvasContext_;
-  var canvas = context.canvas;
-
   for (var i = 0; i < len; ++i) {
-    pixels[i] = [0, 0, 0, 0];
     imageDatas[i] = ol.source.Raster.getImageData_(
         this.renderers_[i], frameState, frameState.layerStatesArray[i]);
   }
+  frameState.tileQueue.loadMoreTiles(16, 16);
 
   var data = {};
   this.dispatchEvent(new ol.source.RasterEvent(
       ol.source.RasterEventType.BEFOREOPERATIONS, frameState, data));
 
-  var targetImageData = null;
-  if (this.operationType_ === ol.raster.OperationType.PIXEL) {
-    targetImageData = context.getImageData(0, 0, canvas.width,
-        canvas.height);
-    var target = targetImageData.data;
+  this.worker_.process(imageDatas, data,
+      this.onWorkerComplete_.bind(this, frameState, callback));
+};
 
-    var source, pixel;
-    for (var j = 0, jj = target.length; j < jj; j += 4) {
-      for (var k = 0; k < len; ++k) {
-        source = imageDatas[k].data;
-        pixel = pixels[k];
-        pixel[0] = source[j];
-        pixel[1] = source[j + 1];
-        pixel[2] = source[j + 2];
-        pixel[3] = source[j + 3];
-      }
-      pixel = this.runPixelOperations_(pixels, data)[0];
-      target[j] = pixel[0];
-      target[j + 1] = pixel[1];
-      target[j + 2] = pixel[2];
-      target[j + 3] = pixel[3];
-    }
-  } else if (this.operationType_ === ol.raster.OperationType.IMAGE) {
-    targetImageData = this.runImageOperations_(imageDatas, data)[0];
-  } else {
-    goog.asserts.fail('unsupported operation type: ' + this.operationType_);
+
+/**
+ * Called when pixel processing is complete.
+ * @param {olx.FrameState} frameState The frame state.
+ * @param {function(Error)} callback Called when rendering is complete.
+ * @param {Error} err Any error during processing.
+ * @param {ImageData} output The output image data.
+ * @param {Object} data The user data.
+ * @private
+ */
+ol.source.Raster.prototype.onWorkerComplete_ =
+    function(frameState, callback, err, output, data) {
+  if (err) {
+    callback(err);
+    return;
+  }
+  if (goog.isNull(output)) {
+    // job aborted
+    return;
   }
 
   this.dispatchEvent(new ol.source.RasterEvent(
       ol.source.RasterEventType.AFTEROPERATIONS, frameState, data));
 
-  context.putImageData(targetImageData, 0, 0);
-
-  frameState.tileQueue.loadMoreTiles(16, 16);
-};
-
-
-/**
- * Run pixel-wise operations to transform pixels.
- * @param {Array.<ol.raster.Pixel>} pixels The input pixels.
- * @param {Object} data User storage.
- * @return {Array.<ol.raster.Pixel>} The modified pixels.
- * @private
- */
-ol.source.Raster.prototype.runPixelOperations_ = function(pixels, data) {
-  for (var i = 0, ii = this.operations_.length; i < ii; ++i) {
-    pixels = this.operations_[i](pixels, data);
+  var resolution = frameState.viewState.resolution / frameState.pixelRatio;
+  if (!this.isDirty_(frameState.extent, resolution)) {
+    this.canvasContext_.putImageData(output, 0, 0);
   }
-  return pixels;
-};
 
-
-/**
- * Run image operations.
- * @param {Array.<ImageData>} imageDatas The input image data.
- * @param {Object} data User storage.
- * @return {Array.<ImageData>} The output image data.
- * @private
- */
-ol.source.Raster.prototype.runImageOperations_ = function(imageDatas, data) {
-  for (var i = 0, ii = this.operations_.length; i < ii; ++i) {
-    imageDatas = this.operations_[i](imageDatas, data);
-  }
-  return imageDatas;
+  callback(null);
 };
 
 
@@ -113660,6 +114130,14 @@ ol.source.Raster.createTileRenderer_ = function(source) {
   var layer = new ol.layer.Tile({source: source});
   return new ol.renderer.canvas.TileLayer(layer);
 };
+
+
+/**
+ * @typedef {{revision: number,
+ *            resolution: number,
+ *            extent: ol.Extent}}
+ */
+ol.source.Raster.RenderedState;
 
 
 
@@ -113896,6 +114374,7 @@ ol.source.TileArcGISRest = function(opt_options) {
 
   goog.base(this, {
     attributions: options.attributions,
+    crossOrigin: options.crossOrigin,
     logo: options.logo,
     projection: options.projection,
     tileGrid: options.tileGrid,
@@ -114958,7 +115437,7 @@ ol.source.TileVector.prototype.getTileCoordForTileUrlFunction =
     function(tileCoord, projection) {
   var tileGrid = this.tileGrid_;
   goog.asserts.assert(!goog.isNull(tileGrid), 'tile grid needed');
-  if (this.getWrapX()) {
+  if (this.getWrapX() && projection.isGlobal()) {
     tileCoord = ol.tilecoord.wrapX(tileCoord, tileGrid, projection);
   }
   return ol.tilecoord.withinExtentAndZ(tileCoord, tileGrid) ?
@@ -115013,7 +115492,7 @@ ol.source.TileVector.prototype.loadFeatures =
           tiles[tileKey] = [];
           var tileSuccess = goog.partial(success, tileKey);
           if (!goog.isNull(this.tileLoadFunction_)) {
-            this.tileLoadFunction_(url, tileSuccess);
+            this.tileLoadFunction_(url, goog.bind(tileSuccess, this));
           } else {
             var loader = ol.featureloader.loadFeaturesXhr(url,
                 /** @type {ol.format.Feature} */ (this.format_), tileSuccess);
@@ -117317,151 +117796,6 @@ ol.style.RegularShape.prototype.getChecksum = function() {
   return this.checksums_[0];
 };
 
-goog.provide('ol.ext.pxl');
-/** @typedef {function(*)} */
-ol.ext.pxl;
-(function() {
-var exports = {};
-var module = {exports: exports};
-/**
- * @fileoverview
- * @suppress {accessControls, ambiguousFunctionDecl, checkDebuggerStatement, checkRegExp, checkTypes, checkVars, const, constantProperty, deprecated, duplicate, es5Strict, fileoverviewTags, missingProperties, nonStandardJsDocs, strictModuleDepCheck, suspiciousCode, undefinedNames, undefinedVars, unknownDefines, uselessCode, visibility}
- */
-(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.pxl = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var Processor = require('./processor');
-
-exports.Processor = Processor;
-
-},{"./processor":2}],2:[function(require,module,exports){
-function createMinion(operations) {
-  var numOps = operations.length;
-  var pixel = [0, 0, 0, 0];
-  return function(buffer) {
-    var data = new Uint8ClampedArray(buffer);
-    for (var i = 0, ii = data.length; i < ii; i += 4) {
-      pixel[0] = data[i];
-      pixel[1] = data[i + 1];
-      pixel[2] = data[i + 2];
-      pixel[3] = data[i + 3];
-      for (var j = 0; j < numOps; ++j) {
-        operations[j](pixel);
-      }
-      data[i] = pixel[0];
-      data[i + 1] = pixel[1];
-      data[i + 2] = pixel[2];
-      data[i + 3] = pixel[3];
-    }
-    return data.buffer;
-  }
-}
-
-function createWorker(operations) {
-  var lines = [
-    'var operations = [' + operations.map(String).join(',') + '];',
-    createMinion.toString(),
-    'var minion = createMinion(operations);',
-    'self.addEventListener("message", function(event) {',
-      'var buffer = minion(event.data);',
-      'self.postMessage(buffer, [buffer]);',
-    '});'
-  ];
-  var blob = new Blob(lines, {type: 'text/javascript'});
-  var source = URL.createObjectURL(blob);
-  return new Worker(source);
-}
-
-function Processor(config) {
-  var threads = config.threads || 1;
-  var workers = [];
-  for (var i = 0; i < threads; ++i) {
-    var worker = createWorker(config.operations);
-    worker.addEventListener('message', this._onWorkerMessage.bind(this, i));
-    workers[i] = worker;
-  }
-  this._workers = workers;
-  this._queue = [];
-  this._maxQueueLength = ('queue' in config) ? config.queue : Infinity;
-  this._running = 0;
-  this._bufferLookup = {};
-  this._job = null;
-}
-
-Processor.prototype.process = function(input) {
-  var promise = new Promise(function(resolve, reject) {
-    this._enqueue({
-      resolve: resolve,
-      reject: reject,
-      input: input
-    });
-  }.bind(this));
-  this._dispatch();
-  return promise;
-};
-
-Processor.prototype._enqueue = function(job) {
-  this._queue.push(job);
-  while (this._queue.length > this._maxQueueLength) {
-    this._queue.shift().resolve(null);
-  }
-};
-
-Processor.prototype._dispatch = function() {
-  if (this._running === 0 && this._queue.length > 0) {
-    this._job = this._queue.shift();
-    var buffer = this._job.input.data.buffer;
-    var threads = this._workers.length;
-    this._running = threads;
-    if (threads === 1) {
-      this._workers[0].postMessage(buffer, [buffer]);
-    } else {
-      var length = this._job.input.data.length;
-      var segmentLength = 4 * Math.ceil(length / 4 / threads);
-      for (var i = 0; i < threads; ++i) {
-        var offset = i * segmentLength;
-        var slice = buffer.slice(offset, offset + segmentLength);
-        this._workers[i].postMessage(slice, [slice]);
-      }
-    }
-  }
-};
-
-Processor.prototype._onWorkerMessage = function(index, event) {
-  this._bufferLookup[index] = event.data;
-  --this._running;
-  if (this._running === 0) {
-    this._resolveJob();
-  }
-};
-
-Processor.prototype._resolveJob = function() {
-  var job = this._job;
-  var threads = this._workers.length;
-  var data;
-  if (threads === 1) {
-    data = new Uint8ClampedArray(this._bufferLookup[0]);
-  } else {
-    var length = job.input.data.length;
-    data = new Uint8ClampedArray(length);
-    var segmentLength = 4 * Math.ceil(length / 4 / threads);
-    for (var i = 0; i < threads; ++i) {
-      var buffer = this._bufferLookup[i];
-      var offset = i * segmentLength;
-      data.set(new Uint8ClampedArray(buffer), offset);
-    }
-  }
-  this._job = null;
-  this._bufferLookup = {};
-  job.resolve(new ImageData(data, job.input.width, job.input.height));
-  this._dispatch();
-};
-
-module.exports = Processor;
-
-},{}]},{},[1])(1)
-});
-ol.ext.pxl = module.exports;
-})();
-
 // Copyright 2009 The Closure Library Authors.
 // All Rights Reserved.
 //
@@ -118617,13 +118951,8 @@ goog.exportProperty(
 
 goog.exportProperty(
     ol.View.prototype,
-    'fitExtent',
-    ol.View.prototype.fitExtent);
-
-goog.exportProperty(
-    ol.View.prototype,
-    'fitGeometry',
-    ol.View.prototype.fitGeometry);
+    'fit',
+    ol.View.prototype.fit);
 
 goog.exportProperty(
     ol.View.prototype,
@@ -120294,6 +120623,16 @@ goog.exportSymbol(
     'ol.interaction.KeyboardZoom.handleEvent',
     ol.interaction.KeyboardZoom.handleEvent,
     OPENLAYERS);
+
+goog.exportProperty(
+    ol.ModifyEvent.prototype,
+    'features',
+    ol.ModifyEvent.prototype.features);
+
+goog.exportProperty(
+    ol.ModifyEvent.prototype,
+    'mapBrowserPointerEvent',
+    ol.ModifyEvent.prototype.mapBrowserPointerEvent);
 
 goog.exportSymbol(
     'ol.interaction.Modify',

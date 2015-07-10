@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
-    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css" type="text/css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" type="text/css">
     <link rel="stylesheet" href="../css/ol.css" type="text/css">
     <link rel="stylesheet" href="./resources/layout.css" type="text/css">
     
@@ -15,13 +15,11 @@
   </head>
   <body>
 
-    <div class="navbar navbar-inverse navbar-fixed-top">
-      <div class="navbar-inner">
-        <div class="container" id="navbar-inner-container">
-          <a class="brand" href="./"><img src="./resources/logo-70x70.png"> OpenLayers 3 Examples</a>
-        </div>
+    <header class="navbar" role="navigation">
+      <div class="container" id="navbar-inner-container">
+        <a class="navbar-brand" href="./"><img src="./resources/logo-70x70.png">&nbsp;OpenLayers 3 Examples</a>
       </div>
-    </div>
+    </header>
 
     <div class="container-fluid">
 
@@ -71,7 +69,7 @@
 </p>
 </div>
           <div id="tags">raster, shaded relief</div>
-          <div id="api-links">Related API documentation: <ul class="inline"><li><a href="../apidoc/ol.Map.html" title="API documentation for ol.Map">ol.Map</a></li>,<li><a href="../apidoc/ol.View.html" title="API documentation for ol.View">ol.View</a></li>,<li><a href="../apidoc/ol.layer.Tile.html" title="API documentation for ol.layer.Tile">ol.layer.Tile</a></li>,<li><a href="../apidoc/ol.source.TileJSON.html" title="API documentation for ol.source.TileJSON">ol.source.TileJSON</a></li>,<li><a href="../apidoc/ol.source.Raster.html" title="API documentation for ol.source.Raster">ol.source.Raster</a></li>,<li><a href="../apidoc/ol.source.XYZ.html" title="API documentation for ol.source.XYZ">ol.source.XYZ</a></li></ul></div>
+          <div id="api-links">Related API documentation: <ul class="inline"><li><a href="../apidoc/ol.Map.html" title="API documentation for ol.Map">ol.Map</a></li>,<li><a href="../apidoc/ol.View.html" title="API documentation for ol.View">ol.View</a></li>,<li><a href="../apidoc/ol.layer.Image.html" title="API documentation for ol.layer.Image">ol.layer.Image</a></li>,<li><a href="../apidoc/ol.layer.Tile.html" title="API documentation for ol.layer.Tile">ol.layer.Tile</a></li>,<li><a href="../apidoc/ol.source.Raster.html" title="API documentation for ol.source.Raster">ol.source.Raster</a></li>,<li><a href="../apidoc/ol.source.TileJSON.html" title="API documentation for ol.source.TileJSON">ol.source.TileJSON</a></li>,<li><a href="../apidoc/ol.source.XYZ.html" title="API documentation for ol.source.XYZ">ol.source.XYZ</a></li></ul></div>
         </div>
       </div>
 
@@ -93,7 +91,7 @@ function shade(inputs, data) {
   var height = elevationImage.height;
   var elevationData = elevationImage.data;
   var shadeData = new Uint8ClampedArray(elevationData.length);
-  var dx = dy = data.resolution * 2;
+  var dp = data.resolution * 2;
   var maxX = width - 1;
   var maxY = height - 1;
   var pixel = [0, 0, 0, 0];
@@ -128,7 +126,7 @@ function shade(inputs, data) {
       pixel[3] = elevationData[offset + 3];
       z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
-      dzdx = (z1 - z0) / dx;
+      dzdx = (z1 - z0) / dp;
 
       // determine elevation for (pixelX, y0)
       offset = (y0 * width + pixelX) * 4;
@@ -146,7 +144,7 @@ function shade(inputs, data) {
       pixel[3] = elevationData[offset + 3];
       z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
-      dzdy = (z1 - z0) / dy;
+      dzdy = (z1 - z0) / dp;
 
       slope = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy));
 
@@ -218,7 +216,7 @@ controlIds.forEach(function(id) {
   });
   output.innerText = control.value;
   controls[id] = control;
-})
+});
 
 raster.on(&#x27;beforeoperations&#x27;, function(event) {
   // the event.data object will be passed to operations
@@ -255,16 +253,16 @@ raster.on(&#x27;beforeoperations&#x27;, function(event) {
 &lt;/div&gt;
 </textarea>
           <input type="hidden" name="wrap" value="l">
-          <input type="hidden" name="resources" value="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css,https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js,https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.css,https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.js">
+          <input type="hidden" name="resources" value="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css,https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js,https://cdnjs.cloudflare.com/ajax/libs/ol3/3.7.0/ol.css,https://cdnjs.cloudflare.com/ajax/libs/ol3/3.7.0/ol.js">
           <pre><code id="example-source" class="language-markup">&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;
 &lt;title&gt;Shaded Relief&lt;/title&gt;
 &lt;script src="https://code.jquery.com/jquery-1.11.2.min.js"&gt;&lt;/script&gt;
-&lt;link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css"&gt;
-&lt;script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"&gt;&lt;/script&gt;
-&lt;link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.css" type="text/css"&gt;
-&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.6.0/ol.js"&gt;&lt;/script&gt;
+&lt;link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"&gt;
+&lt;script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"&gt;&lt;/script&gt;
+&lt;link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.7.0/ol.css" type="text/css"&gt;
+&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.7.0/ol.js"&gt;&lt;/script&gt;
 
 &lt;style&gt;
 table.controls td {
@@ -312,7 +310,7 @@ function shade(inputs, data) {
   var height = elevationImage.height;
   var elevationData = elevationImage.data;
   var shadeData = new Uint8ClampedArray(elevationData.length);
-  var dx = dy = data.resolution * 2;
+  var dp = data.resolution * 2;
   var maxX = width - 1;
   var maxY = height - 1;
   var pixel = [0, 0, 0, 0];
@@ -347,7 +345,7 @@ function shade(inputs, data) {
       pixel[3] = elevationData[offset + 3];
       z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
-      dzdx = (z1 - z0) / dx;
+      dzdx = (z1 - z0) / dp;
 
       // determine elevation for (pixelX, y0)
       offset = (y0 * width + pixelX) * 4;
@@ -365,7 +363,7 @@ function shade(inputs, data) {
       pixel[3] = elevationData[offset + 3];
       z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
-      dzdy = (z1 - z0) / dy;
+      dzdy = (z1 - z0) / dp;
 
       slope = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy));
 
@@ -437,7 +435,7 @@ controlIds.forEach(function(id) {
   });
   output.innerText = control.value;
   controls[id] = control;
-})
+});
 
 raster.on(&#x27;beforeoperations&#x27;, function(event) {
   // the event.data object will be passed to operations
@@ -455,8 +453,8 @@ raster.on(&#x27;beforeoperations&#x27;, function(event) {
       </div>
     </div>
 
-    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
-    <script src="http://maxcdn.bootstrapcdn.com/twitter-bootstrap/2.3.1/js/bootstrap.min.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
     <script src="./resources/common.js"></script>
     <script src="./resources/prism/prism.min.js"></script>
     <script src="loader.js?id=shaded-relief"></script>

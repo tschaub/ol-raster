@@ -11,7 +11,7 @@ function shade(inputs, data) {
   var height = elevationImage.height;
   var elevationData = elevationImage.data;
   var shadeData = new Uint8ClampedArray(elevationData.length);
-  var dx = dy = data.resolution * 2;
+  var dp = data.resolution * 2;
   var maxX = width - 1;
   var maxY = height - 1;
   var pixel = [0, 0, 0, 0];
@@ -46,7 +46,7 @@ function shade(inputs, data) {
       pixel[3] = elevationData[offset + 3];
       z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
-      dzdx = (z1 - z0) / dx;
+      dzdx = (z1 - z0) / dp;
 
       // determine elevation for (pixelX, y0)
       offset = (y0 * width + pixelX) * 4;
@@ -64,7 +64,7 @@ function shade(inputs, data) {
       pixel[3] = elevationData[offset + 3];
       z1 = data.vert * (pixel[0] + pixel[1] * 2 + pixel[2] * 3);
 
-      dzdy = (z1 - z0) / dy;
+      dzdy = (z1 - z0) / dp;
 
       slope = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy));
 
@@ -136,7 +136,7 @@ controlIds.forEach(function(id) {
   });
   output.innerText = control.value;
   controls[id] = control;
-})
+});
 
 raster.on('beforeoperations', function(event) {
   // the event.data object will be passed to operations
